@@ -212,6 +212,19 @@ public class FakeNewsDetector {
 
         System.out.println("Detected " + bySource.size() + " potential coordinated sources");
     }
+    private void initializeDomainCredibility() {
+        domainTrie.insert("reuters.com", 0.10);
+        domainTrie.insert("apnews.com", 0.10);
+        domainTrie.insert("bbc.com", 0.15);
+        domainTrie.insert("nytimes.com", 0.20);
+
+        domainTrie.insert("fakenewssite.com", 0.95);
+        domainTrie.insert("clickbait.net", 0.90);
+
+        domainTrie.insert("news.reuters.com", 0.10);
+        domainTrie.insert("edition.cnn.com", 0.30);  // example: moderate default
+    }
+
 
     // ===== Utils / accessors =====
     private double clamp01(double v) {
