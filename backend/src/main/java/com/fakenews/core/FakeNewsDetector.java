@@ -212,6 +212,17 @@ public class FakeNewsDetector {
 
         System.out.println("Detected " + bySource.size() + " potential coordinated sources");
     }
+    // Return the top-K least credible (i.e., highest fake-score) articles
+    public List<Article> getLeastCredibleArticles(int k) {
+        List<Article> out = new ArrayList<>();
+        List<CredibilityMinHeap.HeapNode> nodes = credibilityHeap.getTopKLeastCredible(k);
+        for (CredibilityMinHeap.HeapNode n : nodes) {
+            Article a = articleCache.get(n.getArticleId());
+            if (a != null) out.add(a);
+        }
+        return out;
+    }
+
     private void initializeDomainCredibility() {
         domainTrie.insert("reuters.com", 0.10);
         domainTrie.insert("apnews.com", 0.10);
