@@ -1,0 +1,9 @@
+digraph FakeNewsGraph {
+  rankdir=LR;
+  node [shape=box, style=rounded];
+
+  "art001" [fillcolor="lightblue", style=filled];
+  "art001" -> "source_clickbait.net" [label="PUBLISHED_BY", weight=1.0];
+  "source_clickbait.net" [fillcolor="lightgreen", style=filled];
+  "source_clickbait.net" -> "art001" [label="HAS_ARTICLE", weight=1.0];
+}
