@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fake News Detection System – Pro</title>
+    <meta name="description" content="AI-powered misinformation analysis with explainability" />
+    <style>
+        /* =====================
+           Design System
+           ===================== */
+        :root {
+          --bg: hsl(248 60% 98%);
+          --bg-elev: hsl(248 53% 99%);
+          --surface: #ffffff;
+          --text: hsl(248 20% 15%);
+          --muted: hsl(248 10% 45%);
+          --primary: hsl(248 85% 62%);
+          --primary-2: hsl(267 57% 55%);
+          --danger: hsl(2 80% 56%);
+          --warn: hsl(36 91% 55%);
+          --success: hsl(152 58% 42%);
+          --ring: hsl(248 85% 70% / 35%);
+          --radius: 14px;
+          --shadow: 0 10px 30px rgba(31, 38, 135, 0.15);
+          --mono: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          :root {
+            --bg: hsl(248 35% 7%);
+            --bg-elev: hsl(248 25% 9%);
+            --surface: hsl(248 25% 12%);
+            --text: hsl(248 25% 96%);
+            --muted: hsl(248 15% 70%);
+            --ring: hsl(248 85% 60% / 35%);
+            --shadow: 0 10px 30px rgba(0,0,0,0.45);
+          }
+        }
+
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+          margin: 0;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+          color: var(--text);
+          background: radial-gradient(1200px 800px at 10% -10%, hsl(248 85% 95%), transparent 50%),
+                      radial-gradient(900px 600px at 110% 0%, hsl(267 85% 96%), transparent 40%),
+                      var(--bg);
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        header.header {
+          display: grid; gap: 12px; justify-items: center; text-align: center; margin-bottom: 24px;
+        }
+        .title {
+          display: flex; gap: 12px; align-items: center; font-weight: 800; font-size: clamp(28px, 4vw, 40px);
+        }
+        .title .logo { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: white;
+          background: linear-gradient(135deg, var(--primary), var(--primary-2)); box-shadow: var(--shadow);
+        }
+        .subtitle { color: var(--muted); font-size: 14px; }
+        .badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .badge { font-size: 12px; padding: 6px 10px; border-radius: 999px; background: linear-gradient(135deg, hsl(248 85% 92%), hsl(267 85% 92%)); color: hsl(248 60% 30%); }
+
+        .topbar { display: flex; gap: 10px; align-items: center; justify-content: center; }
+        .topbar .btn-ghost { background: transparent; border: 1px solid hsl(248 25% 80% / .4); padding: 8px 12px; border-radius: 999px; color: var(--text); cursor: pointer; }
+
+        main.grid {
+          display: grid; gap: 18px;
+          grid-template-columns: 1.1fr 0.9fr;
+        }
+        @media (max-width: 980px) { main.grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+        .card h2 { margin: 6px 0 14px; font-size: 18px; letter-spacing: .2px; }
+        .divider { height: 1px; background: hsl(248 20% 85% / .35); margin: 14px -18px; }
+
+        /* Form */
+        .field { display: grid; gap: 8px; margin-bottom: 12px; }
+        label { font-size: 13px; color: var(--muted); }
+        textarea, input[type="text"] {
+          width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid hsl(248 20% 80% / .5);
+          background: var(--bg-elev); color: var(--text); outline: none;
+        }
+        textarea { resize: vertical; min-height: 120px; }
+        textarea:focus, input[type="text"]:focus { box-shadow: 0 0 0 6px var(--ring); border-color: transparent; }
+
+        .row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+        @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+
+        .btn {
+          display: inline-grid; place-items: center; gap: 8px; grid-auto-flow: column;
+          padding: 12px 16px; border-radius: 12px; border: 0; cursor: pointer; color: white; font-weight: 700;
+          background: linear-gradient(135deg, var(--primary), var(--primary-2));
+          box-shadow: 0 8px 20px hsl(248 85% 40% / 30%);
+          transition: transform .05s ease, filter .2s ease;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { filter: grayscale(.4) opacity(.7); cursor: not-allowed; }
+
+        .examples { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+        .example {
+          border: 1px solid hsl(248 20% 80% / .4); background: var(--bg-elev); padding: 12px; border-radius: 12px; cursor: pointer;
+          transition: border-color .2s ease, transform .1s ease, background .2s ease;
+        }
+        .example:hover { transform: translateY(-2px); border-color: var(--primary); }
+        .example .title { font-size: 14px; font-weight: 700; }
+        .example .snippet { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+        /* Results */
+        .score {
+          display: grid; gap: 12px; place-items: center; text-align: center; padding: 6px 0 14px;
+        }
+        .ring {
+          width: 180px; aspect-ratio: 1/1; border-radius: 50%; display: grid; place-items: center; position: relative;
+          background:
+            conic-gradient(var(--ringColor) calc(var(--pct) * 1%), hsl(248 20% 80% / .25) 0);
+        }
+        .ring::before {
+          content: ""; position: absolute; inset: 10px; background: var(--surface); border-radius: 50%; box-shadow: inset 0 0 0 1px hsl(248 20% 80% / .5);
+        }
+        .ring .value { position: relative; font-weight: 800; font-size: 34px; }
+        .ring .label { position: relative; font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+        .progress { height: 12px; width: 100%; background: hsl(248 20% 80% / .25); border-radius: 999px; overflow: hidden; }
+        .progress > span { display: block; height: 100%; width: var(--pct%); background: var(--ringColor); transition: width .6s ease; }
+
+        .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: white; }
+
+        .feature-list { display: grid; gap: 10px; }
+        .feature-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-elev); border-radius: 12px; padding: 10px 12px; border: 1px solid hsl(248 20% 80% / .35); }
+
+        /* Tabs */
+        .tabs { display: grid; gap: 10px; }
+        .tab-nav { display: grid; grid-auto-flow: column; gap: 8px; }
+        .tab-btn { border: 1px solid hsl(248 20% 80% / .4); background: var(--bg-elev); padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .tab-btn[aria-selected="true"] { border-color: var(--primary); color: var(--primary); background: hsl(248 85% 95% / .5); }
+
+        .attention { line-height: 2; display: block; padding: 12px; border-radius: 12px; background: var(--bg-elev); border: 1px solid hsl(248 20% 80% / .35); }
+        .token { display: inline-block; padding: 4px 6px; margin: 2px; border-radius: 8px; }
+
+        .claims { display: grid; gap: 10px; }
+        .claim { background: var(--bg-elev); border: 1px solid hsl(248 20% 80% / .35); border-left: 4px solid var(--primary); padding: 10px 12px; border-radius: 10px; }
+        .claim .meta { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+
+        .kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+        .kpi { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; padding: 16px; border-radius: 14px; box-shadow: var(--shadow); }
+        .kpi .num { font-weight: 900; font-size: 28px; }
+        .kpi .lbl { opacity: .9; font-size: 13px; }
+
+        .tech { background: #181818; color: var(--text); padding: 16px; border-radius: 14px; margin: 18px 0; border: 1px solid #333; }
+        .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .chip { background: #262626; color: #e5e5e5; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+
+        .footer { text-align: center; color: var(--muted); font-size: 12px; margin: 16px 0 24px; }
+
+        /* Toaster */
+        .toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 10px; z-index: 50; }
+        .toast .item { background: var(--surface); color: var(--text); border: 1px solid hsl(248 20% 80% / .35); padding: 10px 12px; border-radius: 12px; box-shadow: var(--shadow); }
+    </style>
+
+    <!-- Netflix-style theme override -->
+    <style>
+        :root {
+          --bg: #141414;
+          --bg-elev: #181818;
+          --surface: #0f0f0f;
+          --text: #e5e5e5;
+          --muted: #a3a3a3;
+          --primary: #e50914;
+          --primary-2: #b20710;
+          --ring: #e5091433;
+          --shadow: 0 20px 50px rgba(0,0,0,.45);
+        }
+        body {
+          background:
+            radial-gradient(900px 600px at 10% -10%, rgba(229,9,20,.18), transparent 40%),
+            radial-gradient(900px 600px at 110% 0%, rgba(20,20,20,.6), transparent 40%),
+            #141414;
+          color: var(--text);
+        }
+        header.header .title .logo { background: var(--primary); box-shadow: 0 10px 30px rgba(229,9,20,.35); }
+        header.header .title { letter-spacing: .3px; }
+        .badge { background: linear-gradient(135deg, rgba(229,9,20,.15), rgba(255,255,255,.06)); color: #fff; border: 1px solid rgba(255,255,255,.06); }
+        .btn { background: linear-gradient(135deg, var(--primary), var(--primary-2)); box-shadow: 0 12px 28px rgba(229,9,20,.25); }
+        .btn:hover { filter: brightness(1.05); }
+        .card { background: #181818; border: 1px solid #222; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+        textarea, input[type="text"] { background: #0f0f0f; border: 1px solid #2a2a2a; color: #e5e5e5; }
+        .tab-btn { background: #0f0f0f; border-color: #272727; color: var(--muted); }
+        .tab-btn[aria-selected="true"] { color: #fff; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(229,9,20,.2); }
+        .attention { background: #0d0d0d; border-color: #242424; }
+        .kpi { background: linear-gradient(135deg, #1c1c1c, #111); border: 1px solid #242424; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header" role="banner">
+        <div class="title" aria-label="Fake News Detection System">
+            <span class="logo" aria-hidden>🔍</span>
+            <span>Fake News Detection System</span>
+        </div>
+        <p class="subtitle">AI-Powered Misinformation Analysis with Explainable Results</p>
+        <div class="badges" aria-hidden>
+            <span class="badge">RoBERTa NLP</span>
+            <span class="badge">Knowledge Graphs</span>
+            <span class="badge">LIME & SHAP</span>
+            <span class="badge">Advanced Structures</span>
+        </div>
+        <div class="topbar" role="toolbar">
+            <button class="btn-ghost" id="btnTheme" title="Toggle theme" aria-pressed="false">🌓 Theme</button>
+            <button class="btn-ghost" id="btnCopyJSON" title="Copy last result JSON">📋 Copy Result</button>
+            <button class="btn-ghost" id="btnApi" title="Set API base">⚙️ API</button>
+        </div>
+    </header>
+
+    <main class="grid" role="main">
+        <!-- Left column: Input + Results -->
+        <section class="card" aria-labelledby="analyzeTitle">
+            <h2 id="analyzeTitle">📝 Analyze Article</h2>
+            <form id="form" onsubmit="event.preventDefault(); analyzeArticle();" novalidate>
+                <div class="field">
+                    <label for="articleContent">Article Content <span aria-hidden style="color:var(--muted)">(paste text)</span></label>
+                    <textarea id="articleContent" name="content" placeholder="Paste article content here…"></textarea>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="articleTitle">Title (optional)</label>
+                        <input id="articleTitle" type="text" inputmode="text" placeholder="Article Title" />
+                    </div>
+                    <div class="field">
+                        <label for="articleSource">Source URL (optional)</label>
+                        <input id="articleSource" type="text" inputmode="url" placeholder="https://example.com/story" />
+                    </div>
+                </div>
+                <button class="btn" id="btnAnalyze" type="submit">🚀 Analyze Article</button>
+            </form>
+
+            <div class="divider" role="presentation"></div>
+
+            <div class="examples" aria-label="Try examples">
+                <article class="example" tabindex="0" data-ex="1" aria-description="Sensational fake news example">
+                    <div class="title">🚨 Sensational Fake News</div>
+                    <div class="snippet">BREAKING: SHOCKING discovery that changes everything…</div>
+                </article>
+                <article class="example" tabindex="0" data-ex="2">
+                    <div class="title">✅ Credible News Report</div>
+                    <div class="snippet">According to a new report published by scientists…</div>
+                </article>
+                <article class="example" tabindex="0" data-ex="3">
+                    <div class="title">⚠️ Mixed Signals Article</div>
+                    <div class="snippet">Technology breakthrough announced with AMAZING results…</div>
+                </article>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="credibilityTitle">
+            <h2 id="credibilityTitle">📊 Credibility Assessment</h2>
+            <div id="loading" hidden>
+                <div role="status" aria-live="polite">Analyzing article with AI models…</div>
+            </div>
+
+            <div id="results" hidden>
+                <div class="score">
+                    <div class="ring" id="ring" style="--pct:0; --ringColor: var(--primary);">
+                        <div class="value" id="scoreValue">--%</div>
+                        <div class="label" id="scoreLabel">Awaiting input</div>
+                    </div>
+                    <div class="progress" aria-hidden>
+                        <span id="progressBar" style="width:0%"></span>
+                    </div>
+                </div>
+                <p id="explanation"><em>Run an analysis to see insights.</em></p>
+            </div>
+        </section>
+
+        <!-- Right column: Feature Analysis -->
+        <section class="card" aria-labelledby="featuresTitle">
+            <h2 id="featuresTitle">🎯 Feature Analysis</h2>
+            <div id="featuresEmpty" style="color:var(--muted); text-align:center; padding: 10px 0;">Feature scores will appear here after analysis</div>
+            <div class="feature-list" id="featureList" hidden></div>
+        </section>
+
+        <section class="card" aria-labelledby="explainTitle">
+            <h2 id="explainTitle">💡 Explainability & Insights</h2>
+            <div class="tabs">
+                <div class="tab-nav" role="tablist" aria-label="Explainability tabs">
+                    <button id="tab-attention" class="tab-btn" role="tab" aria-selected="true" aria-controls="panel-attention">Attention</button>
+                    <button id="tab-words" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-words">Top Words</button>
+                    <button id="tab-reasons" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-reasons">Key Reasons</button>
+                </div>
+                <section id="panel-attention" role="tabpanel" aria-labelledby="tab-attention">
+                    <div class="attention" id="attentionViz">Detailed attention visualization will appear here</div>
+                </section>
+                <section id="panel-words" role="tabpanel" aria-labelledby="tab-words" hidden>
+                    <div class="feature-list" id="topWords"></div>
+                </section>
+                <section id="panel-reasons" role="tabpanel" aria-labelledby="tab-reasons" hidden>
+                    <ul id="reasonsList" style="padding-left:18px; margin:0;"></ul>
+                </section>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="graphTitle">
+            <h2 id="graphTitle">🔗 Knowledge Graph</h2>
+            <div id="graphEmpty" style="color:var(--muted); text-align:center; padding: 10px 0;">Connections will be visualized here</div>
+            <div id="graphViz" hidden class="attention"></div>
+        </section>
+
+        <section class="card" aria-labelledby="claimsTitle">
+            <h2 id="claimsTitle">📋 Claims Extracted</h2>
+            <div id="claimsEmpty" style="color:var(--muted); text-align:center; padding: 10px 0;">Extracted claims will appear here</div>
+            <div class="claims" id="claimsList" hidden></div>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;" aria-labelledby="statsTitle">
+            <h2 id="statsTitle">📈 System Statistics</h2>
+            <div class="kpis">
+                <div class="kpi"><div class="num" id="statArticles">0</div><div class="lbl">Articles Analyzed</div></div>
+                <div class="kpi"><div class="num" id="statClaims">0</div><div class="lbl">Claims Extracted</div></div>
+                <div class="kpi"><div class="num" id="statAvg">0.00</div><div class="lbl">Avg Fake Score</div></div>
+                <div class="kpi"><div class="num" id="statNodes">0</div><div class="lbl">Graph Nodes</div></div>
+            </div>
+        </section>
+    </main>
+
+    <section class="tech" aria-label="Technology Stack">
+        <h3>🛠️ Technology Stack</h3>
+        <div class="chips" aria-hidden>
+            <span class="chip">Java 11+</span>
+            <span class="chip">RoBERTa-based NLP</span>
+            <span class="chip">Custom Trie</span>
+            <span class="chip">KD-Tree</span>
+            <span class="chip">Min-Heap</span>
+            <span class="chip">Knowledge Graphs</span>
+            <span class="chip">BFS/DFS/Dijkstra</span>
+            <span class="chip">LIME</span>
+            <span class="chip">SHAP</span>
+            <span class="chip">Attention</span>
+        </div>
+    </section>
+
+    <p class="footer">Tip: Press <kbd>1</kbd>, <kbd>2</kbd>, or <kbd>3</kbd> to load an example quickly.</p>
+</div>
+
+<div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+    // =====================
+    // Config helpers (API base)
+    // =====================
+    const API_BASE_FALLBACK = 'http://localhost:8080/api/v1';
+    const api = {
+      getBase() {
+        // Optional window.api shim if you later include api.js
+        return (window.api?.getBase?.()) || localStorage.getItem('apiBase') || API_BASE_FALLBACK;
+      },
+      setBase(url) {
+        if (window.api?.setBase) window.api.setBase(url);
+        localStorage.setItem('apiBase', url);
+      }
+    };
+
+    // =====================
+    // Demo data (same content, cleaned)
+    // =====================
+    const examples = {
+      1: {
+        title: "BREAKING: SHOCKING Discovery That Changes EVERYTHING!!!",
+        content:
+          "BREAKING NEWS!!! Scientists have made an UNBELIEVABLE discovery that will SHOCK the world. This AMAZING finding is INCREDIBLE and will change your life FOREVER. You won't believe what happened next! Sources say this is the most CATASTROPHIC event in history. Everyone is TERRIFIED by these developments. The implications are HUGE and will affect everyone on the planet!!!",
+        source: "https://clickbait.net/news",
+      },
+      2: {
+        title: "Climate Change Report Released by Scientific Panel",
+        content:
+          "According to a new report published by the Intergovernmental Panel on Climate Change, global temperatures have risen by 1.1 degrees Celsius since pre-industrial times. Dr. Sarah Johnson, lead author of the study, said the findings are based on comprehensive data analysis spanning three decades. The report was peer-reviewed and published in Nature Climate journal. Multiple research institutions contributed to the study, including MIT, Stanford, and Oxford University. The panel recommends immediate action to reduce carbon emissions.",
+        source: "https://reuters.com/environment",
+      },
+      3: {
+        title: "New Technology Breakthrough Announced",
+        content:
+          "A major technology company announced a breakthrough in quantum computing today. The CEO claims this will revolutionize the industry and create AMAZING new possibilities. Some experts are SHOCKED by the development, while others remain skeptical about the timeline. The company's stock price increased by 15% following the announcement. Industry analysts said this could be a game-changer, though verification of the claims is still pending.",
+        source: "https://technews.example.com",
+      },
+    };
+
+    // =====================
+    // State
+    // =====================
+    const state = {
+      stats: JSON.parse(localStorage.getItem("fnd:stats") || '{"articles":0,"claims":0,"total":0,"nodes":0}'),
+      lastResult: null,
+    };
+
+    // =====================
+    // Utilities
+    // =====================
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const toast = (msg) => {
+      const t = document.createElement('div');
+      t.className = 'item';
+      t.textContent = msg;
+      $('#toast').appendChild(t);
+      setTimeout(() => t.remove(), 2600);
+    }
+
+    const setResultsVisibility = (isLoading, hasResults) => {
+      $('#loading').hidden = !isLoading;
+      $('#results').hidden = !hasResults;
+    };
+
+    const pretty = (x) => JSON.stringify(x, null, 2);
+
+    const pickColor = (score) =>
+      (score > 0.7 ? getComputedStyle(document.documentElement).getPropertyValue('--danger')
+       : score > 0.5 ? getComputedStyle(document.documentElement).getPropertyValue('--warn')
+       : getComputedStyle(document.documentElement).getPropertyValue('--success'));
+
+    // =====================
+    // Backend → UI mapper (INSIDE <script>)
+    // =====================
+    function mapBackendResult(r) {
+      return {
+        title: r.title || "",
+        source: r.source || "",
+        score: typeof r.credibilityScore === "number" ? r.credibilityScore : 0,
+        features: {
+          "Content Analysis": r.featureScores?.content_analysis ?? 0,
+          "Domain Credibility": r.featureScores?.domain_credibility ?? 0,
+          "Claims Verification": r.featureScores?.claims_verification ?? 0,
+          "Cross Reference": r.featureScores?.cross_reference ?? 0,
+        },
+        claims: (r.claims || []).map(c => ({
+          text: c.text,
+          score: c.verificationScore ?? 0
+        })),
+        explanation: r.explanation ?? "",
+        reasons: r.keyReasons ?? [],
+        attentionTokens: r.attentionTokens ?? [],
+        topWords: r.topWords ?? [],
+      };
+    }
+
+    // =====================
+    // Analyze (calls API with fallback to simulation)
+    // =====================
+    async function analyzeArticle() {
+      const title = $('#articleTitle').value.trim();
+      const content = $('#articleContent').value.trim();
+      const source = $('#articleSource').value.trim();
+
+      if (!content) {
+        toast('Please paste the article content.');
+        $('#articleContent').focus();
+        return;
+      }
+
+      setResultsVisibility(true, false);
+      $('#btnAnalyze').disabled = true;
+
+      try {
+        const base = api.getBase(); // e.g., http://localhost:8080/api/v1  or deployed base
+        const response = await fetch(`${base}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, content, source })
+        });
+
+        if (!response.ok) throw new Error(`Backend error: ${response.status}`);
+
+        const json = await response.json();
+        console.log("✅ API Result:", json);
+
+        const mapped = mapBackendResult(json);
+        state.lastResult = mapped;
+        renderResults(mapped);
+        updateStats(mapped);
+      } catch (err) {
+        console.error("❌ Backend error:", err);
+        toast("Backend error — using simulation");
+        const simulated = simulateAnalysis(title, content, source);
+        state.lastResult = simulated;
+        renderResults(simulated);
+        updateStats(simulated);
+      } finally {
+        $('#btnAnalyze').disabled = false;
+        setResultsVisibility(false, true);
+      }
+    }
+
+    // =====================
+    // Simulation (used if backend fails)
+    // =====================
+    function simulateAnalysis(title, content, source) {
+      let fakeScore = 0.5;
+      const sensationalWords = ['BREAKING','SHOCKING','UNBELIEVABLE','AMAZING','INCREDIBLE','TERRIFIED','CATASTROPHIC'];
+      const upper = content.toUpperCase();
+      let sensationalCount = 0; sensationalWords.forEach(w => { if (upper.includes(w)) sensationalCount++; });
+      fakeScore += Math.min(sensationalCount * 0.08, 0.3);
+      if (content.includes('!!!')) fakeScore += 0.1;
+      if (!content.match(/\b(according to|said|reported|published)\b/i)) fakeScore += 0.1;
+
+      let domainScore = 0.5;
+      if (/reuters\.com|apnews\.com|bbc\.com/i.test(source)) domainScore = 0.15;
+      else if (/clickbait|fake/i.test(source)) domainScore = 0.9;
+
+      const claims = extractClaims(content);
+      const claimsScore = claims.length < 2 ? 0.3 : 0.4;
+
+      fakeScore = Math.min(fakeScore * 0.35 + domainScore * 0.25 + claimsScore * 0.25 + 0.15 * 0.5, 1.0);
+
+      return {
+        title, source,
+        score: fakeScore,
+        features: {
+          'Content Analysis': clamp(fakeScore,0,1),
+          'Domain Credibility': clamp(domainScore,0,1),
+          'Claims Verification': clamp(claimsScore,0,1),
+          'Cross Reference': 0.5,
+        },
+        claims,
+        explanation: generateExplanation(fakeScore),
+        reasons: generateReasons(fakeScore, sensationalCount, source, claims),
+        attentionTokens: generateAttention(content),
+        topWords: generateTopWords(content, sensationalWords),
+      };
+    }
+
+    function extractClaims(content) {
+      const claims = [];
+      const sentences = content.split(/[.!?]+/);
+      sentences.forEach((sent) => {
+        if (sent.match(/\b(said|claims|reports|according to|announced)\b/i) && sent.trim().length > 20) {
+          claims.push({ text: sent.trim(), score: 0.5 + Math.random() * 0.3 });
+        }
+      });
+      return claims.slice(0,5);
+    }
+
+    function generateExplanation(score) {
+      if (score > 0.7) return `This article is likely fake news (${(score * 100).toFixed(1)}% confidence). High use of sensational language and lack of credible sourcing detected.`;
+      if (score > 0.5) return `This article shows some indicators of misinformation (${(score * 100).toFixed(1)}% confidence). Contains suspicious elements that warrant fact-checking.`;
+      return `This article appears credible (${((1-score) * 100).toFixed(1)}% confidence). Proper sourcing and balanced language detected.`;
+    }
+
+    function generateReasons(score, sensationalCount, source, claims) {
+      const reasons = [];
+      if (sensationalCount > 2) reasons.push(`High use of sensational language (${sensationalCount} instances detected)`);
+      if (claims.length < 2) reasons.push('Lacks attribution to credible sources');
+      if (/clickbait|fake/i.test(source)) reasons.push('Source domain has low credibility rating');
+      if (score > 0.7) reasons.push('Multiple fake news indicators detected');
+      if (score < 0.4 && claims.length > 2) reasons.push('Well-sourced with verifiable claims');
+      return reasons;
+    }
+
+    function generateAttention(content) {
+      const words = content.split(/\s+/).slice(0, 80);
+      const HOT = ['BREAKING','SHOCKING','UNBELIEVABLE','AMAZING','INCREDIBLE','TERRIFIED'];
+      return words.map(word => ({
+        token: word,
+        weight: HOT.some(s => word.toUpperCase().includes(s)) ? 0.9 : 0.25 + Math.random() * 0.45
+      }));
+    }
+
+    function generateTopWords(content, sensationalWords) {
+      const words = content.toUpperCase().split(/\s+/);
+      const count = {};
+      words.forEach(w => { if (sensationalWords.some(s => w.includes(s))) count[w] = (count[w]||0)+1; });
+      return Object.entries(count).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([word, n]) => ({ word, importance: n * 0.15 }));
+    }
+
+    // =====================
+    // Renderers
+    // =====================
+    function renderResults(result) {
+      // Ring + labels
+      const pct = Math.round(result.score * 100);
+      const color = pickColor(result.score);
+      $('#ring').style.setProperty('--pct', pct);
+      $('#ring').style.setProperty('--ringColor', color);
+      $('#scoreValue').textContent = pct + '%';
+      $('#scoreLabel').textContent = result.score > 0.7 ? 'Likely Fake' : result.score > 0.5 ? 'Suspicious' : 'Credible';
+      $('#progressBar').style.width = pct + '%';
+      $('#progressBar').style.background = color;
+      $('#explanation').innerHTML = `<strong>Analysis:</strong> ${result.explanation}`;
+
+      // Features
+      $('#featureList').hidden = false; $('#featuresEmpty').hidden = true;
+      $('#featureList').innerHTML = Object.entries(result.features).map(([name, score]) => `
+        <div class="feature-item">
+          <span>${name}</span>
+          <span class="pill" style="background:${pickColor(score)}">${Math.round(score*100)}%</span>
+        </div>
+      `).join('');
+
+      // Explainability tabs content
+      $('#attentionViz').innerHTML = result.attentionTokens.map(t => {
+        const bg = `rgba(255, ${Math.floor((1 - t.weight) * 200)}, 0, ${t.weight})`;
+        return `<span class="token" style="background:${bg}" title="Attention: ${t.weight.toFixed(2)}">${t.token}</span>`;
+      }).join(' ');
+
+      $('#topWords').innerHTML = result.topWords.map(w => `
+        <div class="feature-item">
+          <span>${w.word}</span>
+          <span class="pill" style="background:${pickColor(.8)}">${Math.round(w.importance * 100)}%</span>
+        </div>
+      `).join('');
+
+      $('#reasonsList').innerHTML = result.reasons.map(r => `<li style="margin:8px 0">${r}</li>`).join('');
+
+      // Claims
+      const hasClaims = result.claims.length > 0;
+      $('#claimsList').hidden = !hasClaims; $('#claimsEmpty').hidden = hasClaims ? true : false;
+      $('#claimsList').innerHTML = result.claims.map((claim, i) => `
+        <div class="claim">
+          <div>“${claim.text}”</div>
+          <div class="meta">
+            <span class="pill" style="background:${pickColor(claim.score)}">Verification: ${Math.round(claim.score*100)}%</span>
+            ${result.source ? `<a href="${result.source}" target="_blank" rel="noopener" style="font-size:12px">Source ↗</a>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      // Graph (simple schematic)
+      $('#graphViz').hidden = false; $('#graphEmpty').hidden = true;
+      $('#graphViz').innerHTML = `
+        <div style="text-align:center">
+          <div style="display:inline-grid; gap:8px; justify-items:center">
+            <div class="pill" style="background:var(--primary)">Article</div>
+            <div style="opacity:.7">⬇️ contains ⬇️</div>
+            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap">
+              ${result.claims.map((_,i)=>`<div class="pill" style="background:${pickColor(.6)}">Claim ${i+1}</div>`).join('')}
+            </div>
+            <div style="opacity:.7; margin-top:8px">⬇️ verified by ⬇️</div>
+            <div class="pill" style="background:${pickColor(.3)}">Evidence Sources</div>
+            <div style="opacity:.7; margin-top:8px">⬇️ published by ⬇️</div>
+            <div class="pill" style="background:var(--primary-2)">Source Domain</div>
+          </div>
+        </div>`;
+    }
+
+    function updateStats(result) {
+      state.stats.articles++;
+      state.stats.claims += result.claims.length;
+      state.stats.total += result.score;
+      state.stats.nodes += result.claims.length + 3;
+      localStorage.setItem('fnd:stats', JSON.stringify(state.stats));
+      $('#statArticles').textContent = state.stats.articles;
+      $('#statClaims').textContent = state.stats.claims;
+      $('#statAvg').textContent = (state.stats.total / state.stats.articles).toFixed(2);
+      $('#statNodes').textContent = state.stats.nodes;
+    }
+
+    // =====================
+    // Interactions
+    // =====================
+    $$('.example').forEach(el => {
+      el.addEventListener('click', () => loadExample(+el.dataset.ex));
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadExample(+el.dataset.ex); }});
+    });
+
+    function loadExample(n) {
+      const ex = examples[n];
+      $('#articleTitle').value = ex.title;
+      $('#articleContent').value = ex.content;
+      $('#articleSource').value = ex.source;
+      toast('Example loaded');
+    }
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (['1','2','3'].includes(e.key)) loadExample(+e.key);
+    });
+
+    // Tabs
+    const tabs = [
+      { btn: '#tab-attention', panel: '#panel-attention' },
+      { btn: '#tab-words', panel: '#panel-words' },
+      { btn: '#tab-reasons', panel: '#panel-reasons' },
+    ];
+    tabs.forEach(({btn,panel}, idx) => {
+      $(btn).addEventListener('click', () => selectTab(idx));
+    });
+    function selectTab(idx) {
+      tabs.forEach(({btn,panel}, i) => {
+        $(btn).setAttribute('aria-selected', i===idx);
+        $(panel).hidden = i!==idx;
+      });
+    }
+
+    // Theme toggle (persist)
+    const themeBtn = $('#btnTheme');
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.dataset.theme;
+      document.documentElement.dataset.theme = current === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', document.documentElement.dataset.theme);
+      themeBtn.setAttribute('aria-pressed', document.documentElement.dataset.theme === 'dark');
+    });
+    (function initTheme(){
+      const pref = localStorage.getItem('theme');
+      if (pref) document.documentElement.dataset.theme = pref;
+      themeBtn.setAttribute('aria-pressed', document.documentElement.dataset.theme === 'dark');
+    })();
+
+    // Copy JSON
+    $('#btnCopyJSON').addEventListener('click', async () => {
+      const data = state.lastResult ? pretty(state.lastResult) : '{"message":"Run an analysis first"}';
+      try { await navigator.clipboard.writeText(data); toast('Result JSON copied to clipboard'); } catch { toast('Unable to copy'); }
+    });
+
+    // API base picker
+    const apiBtn = document.getElementById('btnApi');
+    if (apiBtn) {
+      apiBtn.addEventListener('click', () => {
+        const current = api.getBase();
+        const next = prompt('Set API base URL (e.g., https://your-api.onrender.com/api/v1):', current);
+        if (next !== null && next.trim()) {
+          api.setBase(next.trim());
+          toast(`API base set to: ${api.getBase()}`);
+        }
+      });
+    }
+
+    // Load default example on ready
+    window.addEventListener('load', () => loadExample(1));
+</script>
+</body>
+</html>
