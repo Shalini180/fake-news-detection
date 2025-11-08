@@ -18,8 +18,7 @@ WORKDIR /app
 RUN useradd -r -s /usr/sbin/nologin spring
 USER spring
 
-# Copy the built jar (wildcard to avoid version mismatch)
-COPY --from=build /workspace/target/*\.jar /app/app.jar
+COPY --from=build /workspace/target/fake-news-detection-api-1.0.0.jar /app/app.jar
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
 ENV SPRING_PROFILES_ACTIVE=production
@@ -32,4 +31,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -fsS http://localhost:8080/actuator/health || exit 1
 USER spring
 
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]
+
