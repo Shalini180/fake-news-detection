@@ -1,5 +1,5 @@
 # ---------- Build stage ----------
-FROM maven:3.9-eclipse-temurin-11 AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
 # Cache deps first
@@ -11,7 +11,7 @@ COPY src ./src
 RUN mvn -q -B -DskipTests package
 
 # ---------- Runtime stage ----------
-FROM eclipse-temurin:11-jre-jammy
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # Add a non-root user
