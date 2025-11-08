@@ -1,0 +1,16 @@
+# build artifacts
+target/
+!target/*-sources.jar
+!target/*-javadoc.jar
+
+# vcs & tooling
+.git
+.gitignore
+.github
+.idea
+.vscode
+*.iml
+.DS_Store
+
+# local env
+.env
