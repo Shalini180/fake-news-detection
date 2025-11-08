@@ -6,7 +6,7 @@ WORKDIR /workspace
 COPY pom.xml .
 RUN mvn -q -B -DskipTests dependency:go-offline
 
-# Then copy sources and build
+# Then copy sources and build a fat jar (spring-boot:repackage is automatic if plugin present)
 COPY src ./src
 RUN mvn -q -B -DskipTests package
 
@@ -18,18 +18,18 @@ WORKDIR /app
 RUN useradd -r -s /usr/sbin/nologin spring
 USER spring
 
-# Copy the fat jar from the build stage
 COPY --from=build /workspace/target/fake-news-detection-api-1.0.0.jar /app/app.jar
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
 ENV SPRING_PROFILES_ACTIVE=production
 EXPOSE 8080
 
-# Optional: simple healthcheck (container must have curl)
+# Optional HEALTHCHECK (only if you actually have spring-boot-actuator on classpath)
 USER root
 RUN set -eux; apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -fsS http://localhost:8080/actuator/health || exit 1
 USER spring
 
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]
+
