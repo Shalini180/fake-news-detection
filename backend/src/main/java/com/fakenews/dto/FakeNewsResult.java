@@ -16,6 +16,13 @@ public class FakeNewsResult {
     private List<String> keyReasons;
     private List<AttentionToken> attentionTokens;
     private List<TopWord> topWords;
+    private Double robertaConfidence;
+    private Double sentimentScore;
+    private Map writingQuality;
+    private List suspiciousPhrases;
+    private String riskLevel;
+    private String riskIcon;
+    private List extractedClaims;
 
     // ===== getters =====
     public String getArticleId() { return articleId; }
@@ -29,6 +36,13 @@ public class FakeNewsResult {
     public List<String> getKeyReasons() { return keyReasons; }
     public List<AttentionToken> getAttentionTokens() { return attentionTokens; }
     public List<TopWord> getTopWords() { return topWords; }
+    public Double getRobertaConfidence() { return robertaConfidence; }
+    public Double getSentimentScore() { return sentimentScore; }
+    public Map getWritingQuality() { return writingQuality; }
+    public List getSuspiciousPhrases() { return suspiciousPhrases; }
+    public String getRiskLevel() { return riskLevel; }
+    public String getRiskIcon() { return riskIcon; }
+    public List getExtractedClaims() { return extractedClaims; }
 
     // ===== setters =====
     public void setArticleId(String id) { this.articleId = id; }
@@ -42,4 +56,11 @@ public class FakeNewsResult {
     public void setKeyReasons(List<String> keyReasons) { this.keyReasons = keyReasons; }
     public void setAttentionTokens(List<AttentionToken> tokens) { this.attentionTokens = tokens; }
     public void setTopWords(List<TopWord> words) { this.topWords = words; }
+    public void setRobertaConfidence(Double robertaConfidence) { this.robertaConfidence = robertaConfidence; }
+    public void setSentimentScore(Double sentimentScore) { this.sentimentScore = sentimentScore; }
+    public void setWritingQuality(Map writingQuality) { this.writingQuality = writingQuality; }
+    public void setSuspiciousPhrases(List suspiciousPhrases) { this.suspiciousPhrases = suspiciousPhrases; }
+    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public void setRiskIcon(String riskIcon) { this.riskIcon = riskIcon; }
+    public void setExtractedClaims(List extractedClaims) { this.extractedClaims = extractedClaims; }
 }

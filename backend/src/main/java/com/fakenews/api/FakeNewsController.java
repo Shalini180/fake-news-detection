@@ -22,9 +22,11 @@ import java.util.*;
 public class FakeNewsController {
 
     private final FakeNewsDetector detector;
+    private final RobertaService robertaService;
 
-    public FakeNewsController() {
+    public FakeNewsController(RobertaService robertaService) {
         this.detector = new FakeNewsDetector();
+        this.robertaService = robertaService;
     }
 
     // ===========================
@@ -40,8 +42,19 @@ public class FakeNewsController {
                     request.getSource()
             );
 
+            RobertaAnalysisResponse robertaAnalysis = null;
+            try {
+                robertaAnalysis = robertaService.analyze(
+                        request.getTitle(),
+                        request.getContent(),
+                        request.getSource()
+                );
+            } catch (Exception e) {
+                log.error("RoBERTa service unavailable, using fallback", e);
+            }
+
             DetectionResult result = detector.analyzeArticle(article);
-            FakeNewsResult dto = buildResponse(result);
+            FakeNewsResult dto = buildResponse(result, robertaAnalysis);
 
             return ResponseEntity.ok(dto);
 
@@ -116,7 +129,7 @@ public class FakeNewsController {
     // ===========================
     //     BUILD RESPONSE DTO
     // ===========================
-    private FakeNewsResult buildResponse(DetectionResult result) {
+    private FakeNewsResult buildResponse(DetectionResult result, RobertaAnalysisResponse roberta) {
 
         Article article = result.getArticle();
         ComprehensiveExplanation ex = result.getExplanation();
@@ -133,6 +146,16 @@ public class FakeNewsController {
         dto.setFeatureScores(article.getFeatureScores());
         dto.setClaimsCount(result.getClaims().size());
         dto.setKeyReasons(ex != null ? ex.getKeyReasons() : List.of());
+
+        if (roberta != null) {
+            dto.setRobertaConfidence(roberta.getConfidence());
+            dto.setSentimentScore(roberta.getSentimentScore());
+            dto.setWritingQuality(roberta.getWritingQuality());
+            dto.setSuspiciousPhrases(roberta.getSuspiciousPhrases());
+            dto.setRiskLevel(roberta.getRiskLevel().getLevel());
+            dto.setRiskIcon(roberta.getRiskLevel().getIcon());
+            dto.setExtractedClaims(roberta.getExtractedClaims());
+        }
 
         dto.setAttentionTokens(
                 buildAttentionTokens(ex != null ? ex.getAttentionExplanation() : null)

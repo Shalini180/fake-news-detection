@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 import torch
-from transformers import RobertaTokenizer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import logging
 from prometheus_client import Counter, Histogram, make_asgi_app
 import time
@@ -47,10 +47,18 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 # Global variables for model
+# Global variables for model (lazy-loaded)
 model = None
 tokenizer = None
 explainer = None
 device = None
+
+# Small model to use on limited-memory instances
+# Change to your lightweight fine-tuned model if you have one (e.g. "your-username/distilroberta-finetuned")
+MODEL_NAME = "distilroberta-base"
+# Limit CPU threads to reduce memory/CPU contention (helps on tiny instances)
+TORCH_NUM_THREADS = 1
+
 
 # Request/Response Models
 class AnalysisRequest(BaseModel):
@@ -90,44 +98,75 @@ class AnalysisResponse(BaseModel):
     timestamp: str
     model_version: str = "roberta-base-v1.0"
 
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+# NOTE: we intentionally do NOT load the heavy model at startup to keep memory usage low.
+# The model & tokenizer will be lazy-loaded on first prediction request.
 @app.on_event("startup")
-async def load_model():
-    """Load model at startup"""
-    global model, tokenizer, explainer, device
-    
-    logger.info("🚀 Loading RoBERTa model...")
-    
+async def startup_event():
+    global device
+    logger.info("Starting service (model will be lazy-loaded on first request).")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logger.info(f"Using device: {device}")
+    # restrict PyTorch threads which helps memory/CPU on tiny instances
     try:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info(f"Using device: {device}")
-        
-        # Load tokenizer
-        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-        
-        # Load model
-        model = RobertaFakeNewsClassifier(num_labels=2, dropout_rate=0.3)
-        
-        # Try to load trained weights, fallback to pre-trained
-        try:
-            model.load_state_dict(
-                torch.load('models/roberta_fakenews_best.pt', map_location=device)
-            )
-            logger.info("✓ Loaded trained model weights")
-        except FileNotFoundError:
-            logger.warning("⚠ Trained model not found, using base RoBERTa")
-            logger.warning("⚠ Model will work but accuracy may be lower")
-        
-        model.to(device)
-        model.eval()
-        
-        # Initialize explainer
-        explainer = ExplainabilityEngine(tokenizer)
-        
-        logger.info("✓ Model loaded successfully")
-        
+        torch.set_num_threads(TORCH_NUM_THREADS)
+    except Exception:
+        # ignore if not supported in this runtime
+        pass
+
+def load_model_and_tokenizer():
+    """
+    Lazy-load the tokenizer and small model into memory.
+    Uses low_cpu_mem_usage to lower peak memory during load.
+    """
+    global model, tokenizer, explainer, device
+
+    if model is not None and tokenizer is not None:
+        return
+
+    logger.info("🚀 Lazy-loading tokenizer and model (low memory mode)...")
+
+    # Load tokenizer (small, fast)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    # If you have a custom classifier class (RobertaFakeNewsClassifier) fine-tuned and saved,
+    # TWO options:
+    # 1) Load a small fine-tuned HF model with AutoModelForSequenceClassification:
+    #    model = AutoModelForSequenceClassification.from_pretrained(<model_id>, low_cpu_mem_usage=True)
+    # 2) Use your custom class and load saved state dict (but ensure model size is small).
+    #
+    # We'll attempt HF AutoModel (small) first, falling back to custom classifier if needed.
+
+    try:
+        model = AutoModelForSequenceClassification.from_pretrained(
+            MODEL_NAME,
+            low_cpu_mem_usage=True,
+            torch_dtype=torch.float32,
+        )
+        logger.info("✓ Loaded AutoModelForSequenceClassification from hub.")
     except Exception as e:
-        logger.error(f"❌ Error loading model: {str(e)}")
-        raise
+        logger.warning(f"Could not load HF AutoModel (fallback to custom model). Reason: {e}")
+        # Fallback to custom architecture + weights if present (ensure it's small)
+        model = RobertaFakeNewsClassifier(num_labels=2, dropout_rate=0.3)
+        try:
+            model.load_state_dict(torch.load('models/roberta_fakenews_best.pt', map_location=device))
+            logger.info("✓ Loaded trained model weights into custom classifier")
+        except FileNotFoundError:
+            logger.warning("⚠ Trained model not found, using randomly initialized custom model (accuracy may be low)")
+
+    # Move model to device (likely CPU on Render free instance)
+    model.to(device)
+    model.eval()
+
+    # Initialize explainer with tokenizer (if your ExplainabilityEngine expects model too, adapt accordingly)
+    try:
+        explainer = ExplainabilityEngine(tokenizer)
+    except Exception:
+        explainer = None
+        logger.warning("Explainer initialization failed or skipped (will still return basic predictions).")
+
+    logger.info("✅ Model & tokenizer loaded.")
 
 @app.get("/")
 async def root():
@@ -158,7 +197,12 @@ async def predict(request: AnalysisRequest, background_tasks: BackgroundTasks):
     
     start_time = time.time()
     REQUEST_COUNT.inc()
-    
+
+    # Ensure model & tokenizer are loaded lazily (first request will incur load time)
+    if model is None or tokenizer is None:
+        # synchronous load; this may make the first request slow but avoids OOM on startup
+        load_model_and_tokenizer()
+
     try:
         # Combine title and text
         full_text = f"{request.title}. {request.text}"
@@ -169,7 +213,7 @@ async def predict(request: AnalysisRequest, background_tasks: BackgroundTasks):
         encoding = tokenizer.encode_plus(
             full_text,
             add_special_tokens=True,
-            max_length=512,
+            max_length=256,
             padding='max_length',
             truncation=True,
             return_attention_mask=True,
