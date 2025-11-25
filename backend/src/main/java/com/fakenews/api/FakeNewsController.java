@@ -16,15 +16,16 @@ import org.springframework.web.bind.annotation.*;
 
 import com.fakenews.service.RobertaService;
 import com.fakenews.service.RobertaAnalysisResponse;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1")
-@CrossOrigin(origins = "*")
 public class FakeNewsController {
 
+    private static final Logger log = LoggerFactory.getLogger(FakeNewsController.class);
     private final FakeNewsDetector detector;
     private final RobertaService robertaService;
 
@@ -34,7 +35,7 @@ public class FakeNewsController {
     }
 
     // ===========================
-    //   ANALYZE SINGLE ARTICLE
+    // ANALYZE SINGLE ARTICLE
     // ===========================
     @PostMapping("/analyze")
     public ResponseEntity<FakeNewsResult> analyzeArticle(@RequestBody ArticleRequest request) {
@@ -43,16 +44,14 @@ public class FakeNewsController {
                     UUID.randomUUID().toString(),
                     request.getTitle(),
                     request.getContent(),
-                    request.getSource()
-            );
+                    request.getSource());
 
             RobertaAnalysisResponse robertaAnalysis = null;
             try {
                 robertaAnalysis = robertaService.analyze(
                         request.getTitle(),
                         request.getContent(),
-                        request.getSource()
-                );
+                        request.getSource());
             } catch (Exception e) {
                 log.error("RoBERTa service unavailable, using fallback", e);
             }
@@ -69,7 +68,7 @@ public class FakeNewsController {
     }
 
     // ===========================
-    //     BATCH ANALYSIS
+    // BATCH ANALYSIS
     // ===========================
     @PostMapping("/batch-analyze")
     public ResponseEntity<BatchAnalysisResponse> batchAnalyze(@RequestBody List<ArticleRequest> requests) {
@@ -80,8 +79,7 @@ public class FakeNewsController {
                     UUID.randomUUID().toString(),
                     req.getTitle(),
                     req.getContent(),
-                    req.getSource()
-            ));
+                    req.getSource()));
         }
 
         List<DetectionResult> results = detector.analyzeMultipleArticles(articles);
@@ -94,7 +92,7 @@ public class FakeNewsController {
     }
 
     // ===========================
-    //        SYSTEM STATS
+    // SYSTEM STATS
     // ===========================
     @GetMapping("/stats")
     public ResponseEntity<SystemStats> getSystemStats() {
@@ -104,17 +102,15 @@ public class FakeNewsController {
         double avg = 0.0;
 
         return ResponseEntity.ok(
-                new SystemStats(total, 0, avg)
-        );
+                new SystemStats(total, 0, avg));
     }
 
     // ===========================
-    //   LEAST CREDIBLE ARTICLES
+    // LEAST CREDIBLE ARTICLES
     // ===========================
     @GetMapping("/least-credible")
     public ResponseEntity<List<ArticleSummary>> getLeastCredible(
-            @RequestParam(defaultValue = "5") int limit
-    ) {
+            @RequestParam(defaultValue = "5") int limit) {
 
         List<Article> arts = detector.getLeastCredibleArticles(limit);
 
@@ -123,15 +119,14 @@ public class FakeNewsController {
                         a.getId(),
                         a.getTitle(),
                         a.getSource(),
-                        a.getCredibilityScore()
-                ))
+                        a.getCredibilityScore()))
                 .toList();
 
         return ResponseEntity.ok(out);
     }
 
     // ===========================
-    //     BUILD RESPONSE DTO
+    // BUILD RESPONSE DTO
     // ===========================
     private FakeNewsResult buildResponse(DetectionResult result, RobertaAnalysisResponse roberta) {
 
@@ -162,32 +157,34 @@ public class FakeNewsController {
         }
 
         dto.setAttentionTokens(
-                buildAttentionTokens(ex != null ? ex.getAttentionExplanation() : null)
-        );
+                buildAttentionTokens(ex != null ? ex.getAttentionExplanation() : null));
 
         dto.setTopWords(
-                buildTopWords(ex != null ? ex.getLimeExplanation() : null)
-        );
+                buildTopWords(ex != null ? ex.getLimeExplanation() : null));
 
         return dto;
     }
 
     // ===========================
-    //      CLASSIFICATION
+    // CLASSIFICATION
     // ===========================
     private String classify(double s) {
-        if (s > 0.7) return "LIKELY_FAKE";
-        if (s > 0.5) return "SUSPICIOUS";
-        if (s > 0.3) return "MIXED_SIGNALS";
+        if (s > 0.7)
+            return "LIKELY_FAKE";
+        if (s > 0.5)
+            return "SUSPICIOUS";
+        if (s > 0.3)
+            return "MIXED_SIGNALS";
         return "LIKELY_CREDIBLE";
     }
 
     // ===========================
-    //   ATTENTION TOKENS → DTO
+    // ATTENTION TOKENS → DTO
     // ===========================
     private List<AttentionToken> buildAttentionTokens(AttentionExplanation att) {
 
-        if (att == null) return List.of();
+        if (att == null)
+            return List.of();
 
         return att.getTokenAttentions().stream()
                 .limit(50)
@@ -196,11 +193,12 @@ public class FakeNewsController {
     }
 
     // ===========================
-    //     TOP WORDS → DTO
+    // TOP WORDS → DTO
     // ===========================
     private List<TopWord> buildTopWords(LIMEExplanation lime) {
 
-        if (lime == null) return List.of();
+        if (lime == null)
+            return List.of();
 
         return lime.getTopWords().stream()
                 .map(w -> new TopWord(w.getWord(), w.getImportance()))
