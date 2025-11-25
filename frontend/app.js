@@ -187,54 +187,42 @@ async function analyzeArticle() {
         return;
     }
 
-    const btnAnalyze = document.getElementById('btnAnalyze');
-    btnAnalyze.disabled = true;
-    btnAnalyze.textContent = '⏳ Analyzing...';
+});
 
-    try {
-        // Use api.js if available, otherwise fallback to direct fetch
-        const apiBase = window.api?.getBase?.() || 'http://localhost:8080/api/v1';
+if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+}
 
-        const response = await fetch(`${apiBase}/analyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, content, source })
-        });
+const result = await response.json();
+console.log('✅ API Result:', result);
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
+// Render results
+renderResults(result);
 
-        const result = await response.json();
-        console.log('✅ API Result:', result);
+// Add to session
+SessionManager.addAnalysis(result);
 
-        // Render results
-        renderResults(result);
+// Update UI
+loadSessionHistory();
+updateTemporalAnalytics();
 
-        // Add to session
-        SessionManager.addAnalysis(result);
-
-        // Update UI
-        loadSessionHistory();
-        updateTemporalAnalytics();
-
-        showToast('✅ Analysis complete');
+showToast('✅ Analysis complete');
 
     } catch (error) {
-        console.error('❌ API Error:', error);
-        showToast('⚠️ API unavailable - using local simulation');
+    console.error('❌ API Error:', error);
+    showToast('⚠️ API unavailable - using local simulation');
 
-        // Fallback simulation
-        const simulated = simulateAnalysis(title, content, source);
-        renderResults(simulated);
-        SessionManager.addAnalysis(simulated);
-        loadSessionHistory();
-        updateTemporalAnalytics();
+    // Fallback simulation
+    const simulated = simulateAnalysis(title, content, source);
+    renderResults(simulated);
+    SessionManager.addAnalysis(simulated);
+    loadSessionHistory();
+    updateTemporalAnalytics();
 
-    } finally {
-        btnAnalyze.disabled = false;
-        btnAnalyze.textContent = '🚀 Analyze Article';
-    }
+} finally {
+    btnAnalyze.disabled = false;
+    btnAnalyze.textContent = '🚀 Analyze Article';
+}
 }
 
 // Simple simulation fallback
