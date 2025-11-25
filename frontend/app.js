@@ -317,6 +317,9 @@ function renderOverview(result) {
     } else {
         keyReasonsList.innerHTML = '<li class="hint">No specific reasons identified</li>';
     }
+
+    // NEW: Render uncertainty metrics
+    renderUncertaintyOverview(result);
 }
 
 function renderExplanations(result) {
@@ -355,6 +358,9 @@ function renderExplanations(result) {
     } else {
         suspiciousPhrases.innerHTML = '<div class="hint">No suspicious phrases detected</div>';
     }
+
+    // NEW: Render uncertainty breakdown
+    renderUncertaintyBreakdown(result.uncertainty);
 }
 
 function renderClaimsAndEvidence(result) {
@@ -697,6 +703,88 @@ function getClassificationLabel(score) {
     if (score > 0.5) return 'Suspicious';
     if (score > 0.3) return 'Mixed Signals';
     return 'Likely Credible';
+}
+
+// ============================================================================
+// UNCERTAINTY RENDERING HELPERS
+// ============================================================================
+
+function renderUncertaintyOverview(result) {
+    const uncertainty = result.uncertainty || null;
+    const summaryEl = document.getElementById('uncertaintySummary');
+    const hintEl = document.getElementById('ciTextHint');
+
+    if (!uncertainty) {
+        if (window.Visualizations) {
+            Visualizations.destroyChart('uncertaintyGauge');
+            Visualizations.destroyChart('confidenceBandChart');
+        }
+        if (summaryEl) summaryEl.textContent = '';
+        if (hintEl) hintEl.textContent = '';
+        return;
+    }
+
+    // Render uncertainty gauge
+    if (window.Visualizations && uncertainty.entropy !== undefined) {
+        Visualizations.createUncertaintyGauge('uncertaintyGauge', uncertainty.entropy);
+    }
+
+    // Render confidence interval chart
+    if (window.Visualizations && uncertainty.confidenceInterval) {
+        const [ciLower, ciUpper] = uncertainty.confidenceInterval;
+        Visualizations.createConfidenceBandChart(
+            'confidenceBandChart',
+            result.credibilityScore,
+            ciLower,
+            ciUpper
+        );
+    }
+
+    // Update summary text
+    if (summaryEl) {
+        const entropy = uncertainty.entropy || 0;
+        let desc = entropy < 0.2 ? 'highly confident' : entropy < 0.5 ? 'moderately confident' : 'uncertain';
+        summaryEl.textContent = `Entropy ${entropy.toFixed(3)} – model is ${desc} about this classification.`;
+    }
+
+    // Update CI hint
+    if (hintEl && uncertainty.confidenceInterval) {
+        const [lower, upper] = uncertainty.confidenceInterval;
+        const width = upper - lower;
+        if (width < 0.1) {
+            hintEl.textContent = 'Narrow CI indicates precise estimate with low variance across MC samples.';
+        } else if (width < 0.3) {
+            hintEl.textContent = 'Moderate CI width suggests some model disagreement across dropout samples.';
+        } else {
+            hintEl.textContent = 'Wide CI indicates high uncertainty – model predictions vary significantly.';
+        }
+    }
+}
+
+function renderUncertaintyBreakdown(uncertainty) {
+    const el = document.getElementById('uncertaintyBreakdown');
+    if (!el) return;
+
+    if (!uncertainty) {
+        el.innerHTML = '<p class="hint">No uncertainty data available.</p>';
+        return;
+    }
+
+    const { entropy, variance, stdDev, mcSamples, confidenceInterval } = uncertainty;
+    const [ciLow, ciHigh] = confidenceInterval || [];
+
+    el.innerHTML = `
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Entropy:</strong> ${entropy?.toFixed(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Variance:</strong> ${variance?.toExponential(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Std Dev:</strong> ${stdDev?.toFixed(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>MC Samples:</strong> ${mcSamples ?? 'N/A'}</li>
+            <li style="padding: 8px 0;"><strong>95% CI:</strong> [${ciLow?.toFixed(2) ?? '--'}, ${ciHigh?.toFixed(2) ?? '--'}]</li>
+        </ul>
+        <p class="hint" style="margin-top: 12px; font-size: 12px;">
+            Lower entropy and variance indicate more reliable predictions. High entropy suggests the model is unsure.
+        </p>
+    `;
 }
 
 // ============================================================================

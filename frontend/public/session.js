@@ -177,6 +177,16 @@ const SessionManager = (function () {
         }));
     }
 
+    // Get uncertainty time series data for temporal uncertainty visualization
+    function getUncertaintyTimeSeries() {
+        const analyses = getAnalyses().sort((a, b) => a.timestamp - b.timestamp);
+        return analyses.map(a => ({
+            timestamp: a.timestamp,
+            credibilityScore: a.credibilityScore,
+            entropy: a.result.uncertainty ? a.result.uncertainty.entropy : null
+        }));
+    }
+
     // Public API
     return {
         addAnalysis,
@@ -187,6 +197,7 @@ const SessionManager = (function () {
         getStatistics,
         exportSession,
         getTimeSeriesData,
+        getUncertaintyTimeSeries,
         getRiskLevel
     };
 })();
