@@ -75,6 +75,14 @@ class RiskLevel(BaseModel):
     icon: str
     description: str
 
+class Uncertainty(BaseModel):
+    """Uncertainty quantification metrics"""
+    entropy: float = Field(..., ge=0.0, le=1.0, description="Predictive entropy [0-1]")
+    variance: float = Field(..., ge=0.0, description="Variance across MC samples")
+    stdDev: float = Field(..., ge=0.0, description="Standard deviation")
+    confidenceInterval: List[float] = Field(..., description="95% CI [lower, upper]")
+    mcSamples: int = Field(default=20, description="Number of MC dropout samples")
+
 class AnalysisResponse(BaseModel):
     # Core prediction
     prediction: str
@@ -92,6 +100,9 @@ class AnalysisResponse(BaseModel):
     writing_quality: Dict
     extracted_claims: List[str]
     risk_level: RiskLevel
+    
+    # Uncertainty quantification (NEW)
+    uncertainty: Optional[Uncertainty] = None
     
     # Metadata
     processing_time_ms: float
@@ -167,6 +178,157 @@ def load_model_and_tokenizer():
         logger.warning("Explainer initialization failed or skipped (will still return basic predictions).")
 
     logger.info("✅ Model & tokenizer loaded.")
+
+
+# ============================================================================
+# UNCERTAINTY QUANTIFICATION FUNCTIONS
+# ============================================================================
+
+def compute_predictive_entropy(probabilities: torch.Tensor) -> float:
+    """
+    Compute predictive entropy from softmax probabilities.
+    Entropy measures uncertainty: 0 = completely certain, 1 = maximally uncertain.
+    
+    Args:
+        probabilities: Tensor of shape [batch_size, num_classes]
+    
+    Returns:
+        Normalized entropy in [0, 1]
+    """
+    # Avoid log(0) by adding small epsilon
+    epsilon = 1e-10
+    probs = probabilities + epsilon
+    
+    # H(p) = -sum(p * log(p))
+    entropy = -torch.sum(probs * torch.log(probs), dim=1)
+    
+    # Normalize by max entropy (log(num_classes))
+    num_classes = probabilities.shape[1]
+    max_entropy = torch.log(torch.tensor(float(num_classes)))
+    normalized_entropy = entropy / max_entropy
+    
+    return float(normalized_entropy.item())
+
+
+def monte_carlo_dropout_inference(
+    model,
+    input_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    n_samples: int = 20
+) -> Dict:
+    """
+    Perform Monte Carlo Dropout inference by running multiple stochastic forward passes.
+    
+    Args:
+        model: The model with dropout layers
+        input_ids: Input token IDs
+        attention_mask: Attention mask
+        n_samples: Number of stochastic forward passes
+    
+    Returns:
+        Dict with 'mean_probs', 'variance', 'std_dev', 'all_predictions'
+    """
+    # Enable dropout at inference time
+    model.train()  # Set to train mode to enable dropout
+    
+    all_predictions = []
+    
+    for _ in range(n_samples):
+        with torch.no_grad():
+            # Forward pass with dropout enabled
+            logits, _, _ = model(input_ids, attention_mask)
+            probabilities = torch.softmax(logits, dim=1)
+            all_predictions.append(probabilities.cpu())
+    
+    # Stack predictions: shape [n_samples, batch_size, num_classes]
+    all_predictions = torch.stack(all_predictions)
+    
+    # Compute statistics
+    mean_probs = torch.mean(all_predictions, dim=0)
+    variance = torch.var(all_predictions, dim=0)
+    std_dev = torch.std(all_predictions, dim=0)
+    
+    # Restore eval mode
+    model.eval()
+    
+    return {
+        'mean_probs': mean_probs,
+        'variance': variance,
+        'std_dev': std_dev,
+        'all_predictions': all_predictions
+    }
+
+
+def compute_confidence_interval(predictions: torch.Tensor, confidence_level: float = 0.95) -> List[float]:
+    """
+    Compute confidence interval for the prediction using MC samples.
+    
+    Args:
+        predictions: Tensor of shape [n_samples, batch_size, num_classes]
+        confidence_level: Confidence level (default 0.95 for 95% CI)
+    
+    Returns:
+        [lower_bound, upper_bound] for the dominant class probability
+    """
+    # Get predictions for the fake news class (index 1)
+    fake_probs = predictions[:, 0, 1]  # Shape: [n_samples]
+    
+    # Compute percentiles
+    alpha = 1 - confidence_level
+    lower_percentile = (alpha / 2) * 100
+    upper_percentile = (1 - alpha / 2) * 100
+    
+    lower_bound = torch.quantile(fake_probs, lower_percentile / 100)
+    upper_bound = torch.quantile(fake_probs, upper_percentile / 100)
+    
+    return [float(lower_bound.item()), float(upper_bound.item())]
+
+
+def compute_uncertainty_metrics(
+    model,
+    input_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    base_probabilities: torch.Tensor,
+    n_mc_samples: int = 20
+) -> Uncertainty:
+    """
+    Compute all uncertainty metrics for a given prediction.
+    
+    Args:
+        model: The classification model
+        input_ids: Input token IDs
+        attention_mask: Attention mask
+        base_probabilities: Initial prediction probabilities
+        n_mc_samples: Number of MC dropout samples
+    
+    Returns:
+        Uncertainty object with all metrics
+    """
+    # 1. Predictive Entropy
+    entropy = compute_predictive_entropy(base_probabilities)
+    
+    # 2. Monte Carlo Dropout
+    mc_results = monte_carlo_dropout_inference(model, input_ids, attention_mask, n_mc_samples)
+    
+    # 3. Variance and Std Dev (for fake class, index 1)
+    variance = float(mc_results['variance'][0, 1].item())
+    std_dev = float(mc_results['std_dev'][0, 1].item())
+    
+    # 4. Confidence Interval
+    conf_interval = compute_confidence_interval(mc_results['all_predictions'], confidence_level=0.95)
+    
+    return Uncertainty(
+        entropy=entropy,
+        variance=variance,
+        stdDev=std_dev,
+        confidenceInterval=conf_interval,
+        mcSamples=n_mc_samples
+    )
+
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
 
 @app.get("/")
 async def root():
@@ -259,6 +421,22 @@ async def predict(request: AnalysisRequest, background_tasks: BackgroundTasks):
             sentiment_score, writing_quality
         )
         
+        # ============================================================================
+        # UNCERTAINTY QUANTIFICATION (NEW)
+        # ============================================================================
+        try:
+            uncertainty = compute_uncertainty_metrics(
+                model=model,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                base_probabilities=probabilities,
+                n_mc_samples=20
+            )
+            logger.info(f"Uncertainty - Entropy: {uncertainty.entropy:.3f}, StdDev: {uncertainty.stdDev:.4f}")
+        except Exception as e:
+            logger.warning(f"Uncertainty computation failed: {e}. Continuing without uncertainty metrics.")
+            uncertainty = None
+        
         # Track prediction type
         PREDICTION_COUNT.labels(prediction=prediction).inc()
         
@@ -281,6 +459,7 @@ async def predict(request: AnalysisRequest, background_tasks: BackgroundTasks):
             writing_quality=writing_quality,
             extracted_claims=extracted_claims,
             risk_level=risk_level,
+            uncertainty=uncertainty,  # NEW: Include uncertainty metrics
             processing_time_ms=processing_time,
             timestamp=datetime.now().isoformat()
         )

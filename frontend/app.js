@@ -1,458 +1,802 @@
-// Configuration
-const API_URL = 'http://localhost:8080/api/v1';
+/**
+ * RESEARCH DASHBOARD UI - UX SPECIFICATION & ARCHITECTURE
+ * 
+ * LAYOUT ARCHITECTURE:
+ * ├─ Query Panel (Left Sidebar - 320px)
+ * │  ├─ Article input form (title, content, source)
+ * │  ├─ Demo mode selector (5 pre-configured scenarios)
+ * │  └─ Analysis trigger button
+ * │
+ * ├─ Results Workspace (Center - Flex 1, Tabbed Interface)
+ * │  ├─ Overview Tab: Radial gauge, risk badge, key reasons summary
+ * │  ├─ Explanations Tab: Token attention heatmap, feature importance bars, suspicious phrases
+ * │  ├─ Claims & Evidence Tab: Extracted claims with verification status, knowledge graph viz
+ * │  ├─ Temporal & Comparative Tab: Session time series, distribution charts, comparison controls
+ * │  └─ System Metrics Tab: Statistics dashboard, model limitations, session export
+ * │
+ * └─ History Panel (Right Sidebar - 280px, Collapsible on Mobile)
+ *    ├─ Session history list (localStorage, last 50 analyses)
+ *    ├─ Clickable items to reload past results
+ *    ├─ Selection for side-by-side comparison
+ *    └─ Clear history button
+ * 
+ * KEY FEATURES:
+ * - Session History: Auto-saves all analyses to localStorage, filterable, exportable
+ * - Demo Mode: 5 realistic scenarios for offline testing/demos (high-risk fake, credible news, etc.)
+ * - Advanced Viz: Chart.js gauges, time series, distributions; SVG knowledge graphs
+ * - Temporal Analytics: Track credibility evolution across session
+ * - Comparison: Side-by-side analysis of any 2 history items
+ * - Responsive: Desktop 3-panel → Tablet 2-panel → Mobile stacked with overlays
+ * - Theme: Persisted light/dark toggle
+ * 
+ * MODULES USED:
+ * - demo-data.js: DEMO_DATA object with 5 scenarios
+ * - session.js: SessionManager (addAnalysis, getAnalyses, exportSession, etc.)
+ * - visualizations.js: Visualizations (Chart.js wrappers)
+ * - graph-viz.js: GraphViz (SVG knowledge graph renderer)
+ * - api.js: API client for backend communication
+ */
 
-// State
-let currentResults = null;
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
 
-// Initialize
+const AppState = {
+    currentResult: null,
+    selectedForComparison: [],
+    activeClaimFilter: 'all'
+};
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
+    initializeDashboard();
 });
 
-function initializeApp() {
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-    themeToggle.addEventListener('click', toggleTheme);
+function initializeDashboard() {
+    console.log('🚀 Initializing Research Dashboard...');
 
-    // Load saved theme
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
+    // Initialize tabs
+    initializeTabs();
 
-    // Form submission
-    const form = document.getElementById('analysisForm');
-    form.addEventListener('submit', handleFormSubmit);
+    // Initialize demo mode
+    initializeDemoMode();
 
-    // Tab switching
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    // Initialize session history
+    loadSessionHistory();
+
+    // Initialize comparison functionality
+    initializeComparison();
+
+    // Initialize history panel (mobile toggle)
+    initializeHistoryPanel();
+
+    // Hook export button
+    document.getElementById('btnExportSession').addEventListener('click', () => {
+        SessionManager.exportSession();
+        showToast('Session exported successfully!');
     });
 
-    // Character counter
-    const contentTextarea = document.getElementById('content');
-    contentTextarea.addEventListener('input', updateCharacterCount);
+    // Hook clear history button
+    document.getElementById('btnClearHistory').addEventListener('click', () => {
+        if (confirm('Clear all session history?')) {
+            SessionManager.clearHistory();
+            loadSessionHistory();
+            updateTemporalAnalytics();
+            showToast('History cleared');
+        }
+    });
+
+    // Initialize theme toggle
+    initializeTheme();
+
+    // Initialize claim filters
+    initializeClaimFilters();
+
+    console.log('✅ Dashboard initialized');
 }
 
-// Theme Management
-function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    const newTheme = current === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
+// ============================================================================
+// TAB MANAGEMENT
+// ============================================================================
+
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab');
+
+            // Update button states
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update panel visibility
+            tabPanels.forEach(panel => {
+                if (panel.id === `tab-${targetTab}`) {
+                    panel.classList.add('active');
+                } else {
+                    panel.classList.remove('active');
+                }
+            });
+        });
+    });
 }
 
-function updateThemeIcon(theme) {
-    const sunIcon = document.querySelector('.sun-icon');
-    const moonIcon = document.querySelector('.moon-icon');
+// ============================================================================
+// DEMO MODE
+// ============================================================================
 
-    if (theme === 'dark') {
-        sunIcon.classList.add('hidden');
-        moonIcon.classList.remove('hidden');
-    } else {
-        sunIcon.classList.remove('hidden');
-        moonIcon.classList.add('hidden');
-    }
+function initializeDemoMode() {
+    const btnDemoMode = document.getElementById('btnDemoMode');
+    const demoSelector = document.getElementById('demoSelector');
+    const btnLoadDemo = document.getElementById('btnLoadDemo');
+
+    btnDemoMode.addEventListener('click', () => {
+        demoSelector.classList.toggle('hidden');
+    });
+
+    btnLoadDemo.addEventListener('click', () => {
+        const scenarioKey = document.getElementById('demoSelect').value;
+        loadDemoScenario(scenarioKey);
+    });
 }
 
-// Form Handling
-async function handleFormSubmit(e) {
-    e.preventDefault();
-
-    const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
-    const source = document.getElementById('source').value.trim();
-
-    // Validation
-    if (!title || !content) {
-        showNotification('Please fill in all required fields', 'error');
+function loadDemoScenario(scenarioKey) {
+    const demo = window.DEMO_DATA[scenarioKey];
+    if (!demo) {
+        showToast('Demo scenario not found');
         return;
     }
 
-    if (content.length < 10) {
-        showNotification('Content must be at least 10 characters', 'error');
+    console.log('Loading demo scenario:', scenarioKey);
+
+    // Populate form fields
+    document.getElementById('articleTitle').value = demo.title;
+    document.getElementById('articleContent').value = demo.content;
+    document.getElementById('articleSource').value = demo.source;
+
+    // Render results (demo response is already in the correct format)
+    renderResults(demo.response);
+
+    // Add to session history
+    SessionManager.addAnalysis(demo.response);
+
+    // Update history display and temporal analytics
+    loadSessionHistory();
+    updateTemporalAnalytics();
+
+    showToast('✅ Demo data loaded');
+}
+
+// ============================================================================
+// ARTICLE ANALYSIS (API Integration)
+// ============================================================================
+
+async function analyzeArticle() {
+    const title = document.getElementById('articleTitle').value.trim();
+    const content = document.getElementById('articleContent').value.trim();
+    const source = document.getElementById('articleSource').value.trim();
+
+    if (!content) {
+        showToast('❌ Please enter article content');
+        document.getElementById('articleContent').focus();
         return;
     }
 
-    // Show loading
-    showLoading();
-    hideResults();
+    const btnAnalyze = document.getElementById('btnAnalyze');
+    btnAnalyze.disabled = true;
+    btnAnalyze.textContent = '⏳ Analyzing...';
 
     try {
-        const response = await fetch(`${API_URL}/analyze`, {
+        // Use api.js if available, otherwise fallback to direct fetch
+        const apiBase = window.api?.getBase?.() || 'http://localhost:8080/api/v1';
+
+        const response = await fetch(`${apiBase}/analyze`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                title,
-                content,
-                source: source || null
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, source })
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`API error: ${response.status}`);
         }
 
-        const data = await response.json();
-        currentResults = data;
+        const result = await response.json();
+        console.log('✅ API Result:', result);
 
-        // Display results
-        displayResults(data);
+        // Render results
+        renderResults(result);
 
-        // Smooth scroll to results
-        setTimeout(() => {
-            document.getElementById('resultsSection').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        }, 300);
+        // Add to session
+        SessionManager.addAnalysis(result);
+
+        // Update UI
+        loadSessionHistory();
+        updateTemporalAnalytics();
+
+        showToast('✅ Analysis complete');
 
     } catch (error) {
-        console.error('Analysis error:', error);
-        showNotification(
-            'Failed to analyze article. Please try again.',
-            'error'
-        );
+        console.error('❌ API Error:', error);
+        showToast('⚠️ API unavailable - using local simulation');
+
+        // Fallback simulation
+        const simulated = simulateAnalysis(title, content, source);
+        renderResults(simulated);
+        SessionManager.addAnalysis(simulated);
+        loadSessionHistory();
+        updateTemporalAnalytics();
+
     } finally {
-        hideLoading();
+        btnAnalyze.disabled = false;
+        btnAnalyze.textContent = '🚀 Analyze Article';
     }
 }
 
-// Display Results
-function displayResults(data) {
-    // Show results section
-    const resultsSection = document.getElementById('resultsSection');
-    resultsSection.classList.remove('hidden');
+// Simple simulation fallback
+function simulateAnalysis(title, content, source) {
+    const score = Math.random() * 0.6 + 0.2; // Random score between 0.2-0.8
+    const riskLevel = SessionManager.getRiskLevel(score);
+
+    return {
+        articleId: `sim-${Date.now()}`,
+        title: title || 'Untitled',
+        source: source || 'Unknown',
+        credibilityScore: score,
+        classification: riskLevel.level,
+        explanation: 'Simulated analysis (backend unavailable)',
+        featureScores: {
+            content_analysis: score,
+            domain_credibility: score * 0.9,
+            claims_verification: score * 1.1,
+            cross_reference: score * 0.8
+        },
+        keyReasons: ['Backend unavailable - showing simulated results'],
+        riskLevel: riskLevel,
+        extractedClaims: [],
+        attentionTokens: [],
+        topWords: [],
+        suspiciousPhrases: []
+    };
+}
+
+// ============================================================================
+// RESULT RENDERING
+// ============================================================================
+
+function renderResults(result) {
+    console.log('Rendering results:', result);
+    AppState.currentResult = result;
+
+    // 1. Render Overview Tab
+    renderOverview(result);
+
+    // 2. Render Explanations Tab
+    renderExplanations(result);
+
+    // 3. Render Claims & Evidence Tab
+    renderClaimsAndEvidence(result);
+
+    // 4. Update temporal analytics (charts)
+    updateTemporalAnalytics();
+}
+
+function renderOverview(result) {
+    const score = result.credibilityScore || 0;
+
+    // Create credibility gauge using Visualizations module
+    if (window.Visualizations && window.Visualizations.isChartJsAvailable()) {
+        Visualizations.createCredibilityGauge('credibilityGauge', score);
+    }
+
+    // Update gauge text
+    document.getElementById('gaugeScore').textContent = Math.round(score * 100) + '%';
+    document.getElementById('gaugeLabel').textContent = getClassificationLabel(score);
 
     // Update risk badge
-    updateRiskBadge(data);
-
-    // Update classification
-    document.getElementById('classification').textContent = data.classification;
-
-    // Update credibility score with animation
-    animateScore(data.finalCredibilityScore);
-
-    // Update overall assessment
-    document.getElementById('overallAssessment').textContent = data.overallAssessment;
-
-    // Update key reasons
-    displayKeyReasons(data.keyReasons);
-
-    // Update suspicious phrases
-    displaySuspiciousPhrases(data.suspiciousPhrases);
-
-    // Update top tokens
-    displayTopTokens(data.topTokens);
-
-    // Update claims
-    displayClaims(data);
-
-    // Update deep analysis
-    displayDeepAnalysis(data);
-
-    // Update processing time
-    document.getElementById('processingTime').textContent =
-        `Analyzed in ${data.processingTimeMs.toFixed(0)}ms`;
-}
-
-function updateRiskBadge(data) {
-    const riskIcon = document.getElementById('riskIcon');
-    const riskText = document.getElementById('riskText');
+    const riskLevel = result.riskLevel || SessionManager.getRiskLevel(score);
     const riskBadge = document.getElementById('riskBadge');
+    riskBadge.innerHTML = `
+    <span class="risk-icon">${riskLevel.icon}</span>
+    <span class="risk-text">${riskLevel.level} RISK</span>
+  `;
+    riskBadge.style.background = riskLevel.color;
 
-    riskIcon.textContent = data.riskIcon;
-    riskText.textContent = data.riskLevel;
+    // Render key reasons
+    const keyReasonsList = document.getElementById('keyReasonsList');
+    const reasons = result.keyReasons || [];
 
-    // Update badge color based on risk
-    riskBadge.className = 'risk-badge';
-    switch(data.riskLevel) {
-        case 'HIGH':
-            riskBadge.classList.add('risk-high');
-            break;
-        case 'MEDIUM':
-            riskBadge.classList.add('risk-medium');
-            break;
-        case 'LOW':
-            riskBadge.classList.add('risk-low');
-            break;
-        case 'SAFE':
-            riskBadge.classList.add('risk-safe');
-            break;
-    }
-}
-
-function animateScore(score) {
-    const scoreValue = document.getElementById('scoreValue');
-    const scoreCircle = document.getElementById('scoreCircle');
-    const circumference = 565.48;
-
-    // Animate number
-    let current = 0;
-    const target = Math.round(score * 100);
-    const increment = target / 50;
-
-    const numberInterval = setInterval(() => {
-        current += increment;
-        if (current >= target) {
-            current = target;
-            clearInterval(numberInterval);
-        }
-        scoreValue.textContent = Math.round(current);
-    }, 20);
-
-    // Animate circle
-    const offset = circumference - (score * circumference);
-    scoreCircle.style.strokeDashoffset = offset;
-
-    // Update color based on score
-    if (score >= 0.75) {
-        scoreCircle.style.stroke = '#10b981'; // Green
-    } else if (score >= 0.55) {
-        scoreCircle.style.stroke = '#f59e0b'; // Yellow
-    } else if (score >= 0.35) {
-        scoreCircle.style.stroke = '#f97316'; // Orange
+    if (reasons.length > 0) {
+        keyReasonsList.innerHTML = reasons.map(reason => `
+      <li>${escapeHtml(reason)}</li>
+    `).join('');
     } else {
-        scoreCircle.style.stroke = '#ef4444'; // Red
+        keyReasonsList.innerHTML = '<li class="hint">No specific reasons identified</li>';
     }
+
+    // NEW: Render uncertainty metrics
+    renderUncertaintyOverview(result);
 }
 
-function displayKeyReasons(reasons) {
-    const list = document.getElementById('keyReasonsList');
-    list.innerHTML = '';
+function renderExplanations(result) {
+    // 1. Attention heatmap
+    const attentionHeatmap = document.getElementById('attentionHeatmap');
+    const tokens = result.attentionTokens || [];
 
-    if (!reasons || reasons.length === 0) {
-        list.innerHTML = '<li class="no-data">No specific issues identified</li>';
-        return;
+    if (tokens.length > 0) {
+        attentionHeatmap.innerHTML = tokens.slice(0, 100).map(t => {
+            const weight = t.weight || 0;
+            const intensity = Math.floor(weight * 255);
+            const bgColor = `rgba(${255 - intensity}, ${Math.floor((1 - weight) * 200)}, 0, ${weight * 0.8 + 0.2})`;
+
+            return `<span class="attention-token" style="background: ${bgColor};" title="Attention: ${weight.toFixed(3)}">${escapeHtml(t.token)}</span>`;
+        }).join(' ');
+    } else {
+        attentionHeatmap.innerHTML = '<span class="hint">No attention data available</span>';
     }
 
-    reasons.forEach((reason, index) => {
-        const li = document.createElement('li');
-        li.className = 'reason-item';
-        li.innerHTML = `
-            <div class="reason-icon">${index + 1}</div>
-            <div class="reason-text">${escapeHtml(reason)}</div>
-        `;
-        list.appendChild(li);
-    });
+    // 2. Feature importance chart
+    if (window.Visualizations && result.featureScores) {
+        Visualizations.createFeatureChart('featureChart', result.featureScores);
+    }
+
+    // 3. Suspicious phrases
+    const suspiciousPhrases = document.getElementById('suspiciousPhrases');
+    const phrases = result.suspiciousPhrases || [];
+
+    if (phrases.length > 0) {
+        suspiciousPhrases.innerHTML = phrases.map(p => `
+      <div class="suspicious-phrase-item">
+        <div class="phrase-text">${escapeHtml(p.phrase)}</div>
+        <div class="phrase-reason">${escapeHtml(p.reason)}</div>
+      </div>
+    `).join('');
+    } else {
+        suspiciousPhrases.innerHTML = '<div class="hint">No suspicious phrases detected</div>';
+    }
+
+    // NEW: Render uncertainty breakdown
+    renderUncertaintyBreakdown(result.uncertainty);
 }
 
-function displaySuspiciousPhrases(phrases) {
-    const container = document.getElementById('suspiciousPhrases');
-    container.innerHTML = '';
+function renderClaimsAndEvidence(result) {
+    const claimsList = document.getElementById('claimsList');
+    const claims = result.extractedClaims || [];
 
-    if (!phrases || phrases.length === 0) {
-        container.innerHTML = '<p class="no-data">No suspicious phrases detected</p>';
-        return;
-    }
-
-    phrases.forEach(phrase => {
-        const badge = document.createElement('span');
-        badge.className = 'phrase-badge';
-        badge.textContent = phrase;
-        container.appendChild(badge);
-    });
-}
-
-function displayTopTokens(tokens) {
-    const container = document.getElementById('topTokens');
-    container.innerHTML = '';
-
-    if (!tokens || tokens.length === 0) {
-        container.innerHTML = '<p class="no-data">No significant tokens identified</p>';
-        return;
-    }
-
-    // Take top 10 tokens
-    const topTokens = tokens.slice(0, 10);
-    const maxImportance = topTokens[0].importance;
-
-    topTokens.forEach(item => {
-        const tokenCard = document.createElement('div');
-        tokenCard.className = 'token-card';
-
-        const barWidth = (item.importance / maxImportance) * 100;
-
-        tokenCard.innerHTML = `
-            <div class="token-word">${escapeHtml(item.token)}</div>
-            <div class="token-bar">
-                <div class="token-bar-fill" style="width: ${barWidth}%"></div>
-            </div>
-            <div class="token-score">${item.importance.toFixed(3)}</div>
-        `;
-
-        container.appendChild(tokenCard);
-    });
-}
-
-function displayClaims(data) {
-    const totalClaims = data.claimCount || 0;
-    const verifiedClaims = data.verifiedClaims || 0;
-    const verificationRate = totalClaims > 0
-        ? Math.round((verifiedClaims / totalClaims) * 100)
-        : 0;
-
-    document.getElementById('totalClaims').textContent = totalClaims;
-    document.getElementById('verifiedClaims').textContent = verifiedClaims;
-    document.getElementById('verificationRate').textContent = verificationRate + '%';
-
-    const claimsList = document.getElementById('extractedClaimsList');
-    claimsList.innerHTML = '';
-
-    if (!data.extractedClaims || data.extractedClaims.length === 0) {
-        claimsList.innerHTML = '<li class="no-data">No factual claims extracted</li>';
-        return;
-    }
-
-    data.extractedClaims.forEach((claim, index) => {
-        const li = document.createElement('li');
-        li.className = 'claim-item';
-
-        // Determine if verified (simplified - in production, track individual claims)
-        const isVerified = index < verifiedClaims;
-
-        li.innerHTML = `
-            <div class="claim-status ${isVerified ? 'verified' : 'unverified'}">
-                ${isVerified ? '✓' : '?'}
-            </div>
-            <div class="claim-text">${escapeHtml(claim)}</div>
-        `;
-
-        claimsList.appendChild(li);
-    });
-}
-
-function displayDeepAnalysis(data) {
-    // RoBERTa confidence
-    const robertaConf = Math.round(data.robertaConfidence * 100);
-    document.getElementById('robertaConfidence').textContent = robertaConf + '%';
-    document.getElementById('robertaProgress').style.width = robertaConf + '%';
-
-    // Domain score
-    const domainScoreValue = Math.round(data.domainScore * 100);
-    document.getElementById('domainScore').textContent = domainScoreValue + '%';
-    document.getElementById('domainProgress').style.width = domainScoreValue + '%';
-
-    // Sentiment
-    const sentiment = data.sentimentScore || 0;
-    const sentimentPercent = ((sentiment + 1) / 2) * 100; // Convert -1 to 1 → 0 to 100
-    document.getElementById('sentimentScore').textContent =
-        sentiment > 0 ? 'Positive' : sentiment < 0 ? 'Negative' : 'Neutral';
-    document.getElementById('sentimentBar').style.left = sentimentPercent + '%';
-
-    // Writing quality
-    displayWritingQuality(data.writingQuality);
-
-    // Component scores
-    if (data.componentScores) {
-        document.getElementById('contentScore').textContent =
-            Math.round(data.componentScores.contentAnalysis * 100) + '%';
-        document.getElementById('domainScoreBreakdown').textContent =
-            Math.round(data.componentScores.domainCredibility * 100) + '%';
-        document.getElementById('claimScore').textContent =
-            Math.round(data.componentScores.claimVerification * 100) + '%';
-        document.getElementById('crossRefScore').textContent =
-            Math.round(data.componentScores.crossReference * 100) + '%';
-    }
-}
-
-function displayWritingQuality(quality) {
-    const container = document.getElementById('writingQualityDetails');
-
-    if (!quality) {
-        container.innerHTML = '<p class="no-data">No quality data available</p>';
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="quality-item">
-            <span>Exclamation marks:</span>
-            <span class="${quality.exclamation_count > 3 ? 'warning' : ''}">${quality.exclamation_count}</span>
+    if (claims.length > 0) {
+        claimsList.innerHTML = claims.map((claim, i) => `
+      <div class="claim-item" data-status="${claim.status || 'UNVERIFIED'}">
+        <div class="claim-text">"${escapeHtml(claim.text)}"</div>
+        <div class="claim-meta">
+          <span class="claim-status status-${claim.status || 'UNVERIFIED'}">
+            ${claim.status || 'UNVERIFIED'}
+          </span>
+          ${claim.evidenceDensity !== undefined ? `<span>Evidence: ${claim.evidenceDensity}/10</span>` : ''}
         </div>
-        <div class="quality-item">
-            <span>Capitalization ratio:</span>
-            <span class="${quality.caps_ratio > 0.3 ? 'warning' : ''}">${(quality.caps_ratio * 100).toFixed(1)}%</span>
+      </div>
+    `).join('');
+    } else {
+        claimsList.innerHTML = '<div class="hint">No claims extracted</div>';
+    }
+
+    // Apply current filter
+    applyClaimFilter(AppState.activeClaimFilter);
+
+    // Render knowledge graph
+    if (window.GraphViz) {
+        GraphViz.createSimpleGraph('knowledgeGraph', {
+            article: { title: result.title || 'Article' },
+            claims: claims,
+            evidenceSources: { count: claims.reduce((sum, c) => sum + (c.evidenceDensity || 0), 0) }
+        });
+    }
+}
+
+// ============================================================================
+// SESSION HISTORY
+// ============================================================================
+
+function loadSessionHistory() {
+    const analyses = SessionManager.getAnalyses();
+    const historyList = document.getElementById('historyList');
+
+    if (analyses.length === 0) {
+        historyList.innerHTML = '<p class="hint">No analyses yet</p>';
+        return;
+    }
+
+    // Reverse to show most recent first
+    const recentFirst = [...analyses].reverse();
+
+    historyList.innerHTML = recentFirst.map(a => {
+        const isSelected = AppState.selectedForComparison.includes(a.id);
+        const selectedClass = isSelected ? 'selected' : '';
+
+        return `
+      <div class="history-item risk-${a.riskLevel.level.toLowerCase()} ${selectedClass}" 
+           onclick="loadHistoryItem('${a.id}')"
+           ondblclick="toggleComparisonSelection('${a.id}')">
+        <div class="history-item-header">
+          <span class="history-item-title" title="${escapeHtml(a.title)}">
+            ${truncate(a.title, 30)}
+          </span>
+          <span class="history-item-badge">${a.riskLevel.icon}</span>
         </div>
-        <div class="quality-item">
-            <span>Clickbait score:</span>
-            <span class="${quality.clickbait_score >= 3 ? 'warning' : ''}">${quality.clickbait_score}/10</span>
+        <div class="history-item-meta">
+          <span class="history-item-timestamp">${formatTime(a.timestamp)}</span>
+          <span class="history-item-score">${Math.round(a.credibilityScore * 100)}%</span>
         </div>
-        <div class="quality-item">
-            <span>Avg sentence length:</span>
-            <span>${quality.avg_sentence_length.toFixed(0)} chars</span>
-        </div>
+        ${isSelected ? '<div style="font-size: 10px; color: white; margin-top: 4px;">✓ Selected for comparison</div>' : ''}
+      </div>
     `;
+    }).join('');
 }
 
-// Tab Management
-function switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
+function loadHistoryItem(id) {
+    const analysis = SessionManager.getAnalysisById(id);
+    if (!analysis) return;
+
+    console.log('Loading history item:', id);
+    renderResults(analysis.result);
+    showToast('Loaded from history');
+}
+
+// ============================================================================
+// TEMPORAL ANALYTICS
+// ============================================================================
+
+function updateTemporalAnalytics() {
+    const timeSeriesData = SessionManager.getTimeSeriesData();
+    const stats = SessionManager.getStatistics();
+
+    // Update time series chart
+    if (window.Visualizations && timeSeriesData.length > 0) {
+        Visualizations.createTimeSeriesChart('timeSeriesChart', timeSeriesData);
+        Visualizations.createDistributionChart('distributionChart', stats.distribution);
+    }
+
+    // Update system metrics
+    document.getElementById('metricTotal').textContent = stats.total;
+    document.getElementById('metricAvg').textContent = (stats.avgScore * 100).toFixed(1) + '%';
+    document.getElementById('metricHigh').textContent = stats.distribution.HIGH || 0;
+}
+
+// ============================================================================
+// COMPARISON
+// ============================================================================
+
+function initializeComparison() {
+    const btnCompare = document.getElementById('btnCompare');
+    const modal = document.getElementById('comparisonModal');
+    const btnClose = document.getElementById('btnCloseComparison');
+
+    btnCompare.addEventListener('click', showComparison);
+    btnClose.addEventListener('click', () => modal.classList.remove('active'));
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
     });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+}
 
-    // Update tab panels
-    document.querySelectorAll('.tab-panel').forEach(panel => {
-        panel.classList.add('hidden');
+function toggleComparisonSelection(id) {
+    const index = AppState.selectedForComparison.indexOf(id);
+
+    if (index > -1) {
+        AppState.selectedForComparison.splice(index, 1);
+    } else {
+        if (AppState.selectedForComparison.length >= 2) {
+            AppState.selectedForComparison.shift(); // Remove oldest
+        }
+        AppState.selectedForComparison.push(id);
+    }
+
+    // Update button and history display
+    const btnCompare = document.getElementById('btnCompare');
+    btnCompare.textContent = `Compare Selected (${AppState.selectedForComparison.length}/2)`;
+    btnCompare.disabled = AppState.selectedForComparison.length !== 2;
+
+    loadSessionHistory();
+}
+
+function showComparison() {
+    if (AppState.selectedForComparison.length !== 2) return;
+
+    const analysis1 = SessionManager.getAnalysisById(AppState.selectedForComparison[0]);
+    const analysis2 = SessionManager.getAnalysisById(AppState.selectedForComparison[1]);
+
+    if (!analysis1 || !analysis2) return;
+
+    const grid = document.getElementById('comparisonGrid');
+    grid.innerHTML = `
+    ${renderComparisonColumn(analysis1)}
+    ${renderComparisonColumn(analysis2)}
+  `;
+
+    document.getElementById('comparisonModal').classList.add('active');
+}
+
+function renderComparisonColumn(analysis) {
+    const result = analysis.result;
+    const score = result.credibilityScore || 0;
+
+    return `
+    <div class="comparison-column">
+      <h3>${escapeHtml(analysis.title)}</h3>
+      <div style="margin: 16px 0;">
+        <div style="font-size: 48px; font-weight: 900; text-align: center;">${Math.round(score * 100)}%</div>
+        <div style="text-align: center; color: var(--muted);">Risk Score</div>
+      </div>
+      <div style="margin: 12px 0;">
+        <strong>Classification:</strong> ${result.classification || 'Unknown'}
+      </div>
+      <div style="margin: 12px 0;">
+        <strong>Source:</strong> ${escapeHtml(analysis.source || 'Unknown')}
+      </div>
+      <div style="margin: 12px 0;">
+        <strong>Claims:</strong> ${(result.extractedClaims || []).length}
+      </div>
+      <div style="margin: 12px 0;">
+        <strong>Timestamp:</strong> ${new Date(analysis.timestamp).toLocaleString()}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// CLAIM FILTERS
+// ============================================================================
+
+function initializeClaimFilters() {
+    const filterButtons = document.querySelectorAll('.claims-filter .filter-btn');
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filter = btn.getAttribute('data-filter');
+
+            // Update button states
+            filterButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Apply filter
+            AppState.activeClaimFilter = filter;
+            applyClaimFilter(filter);
+        });
     });
-    document.getElementById(tabName + 'Tab').classList.remove('hidden');
 }
 
-// Loading States
-function showLoading() {
-    document.getElementById('loadingState').classList.remove('hidden');
-    document.getElementById('analyzeBtn').disabled = true;
+function applyClaimFilter(filter) {
+    const claimItems = document.querySelectorAll('.claim-item');
+
+    claimItems.forEach(item => {
+        const status = item.getAttribute('data-status');
+
+        if (filter === 'all' || status === filter) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
 }
 
-function hideLoading() {
-    document.getElementById('loadingState').classList.add('hidden');
-    document.getElementById('analyzeBtn').disabled = false;
+// ============================================================================
+// HISTORY PANEL (Mobile)
+// ============================================================================
+
+function initializeHistoryPanel() {
+    const btnToggle = document.getElementById('btnToggleHistory');
+    const historyPanel = document.querySelector('.history-panel');
+    const overlay = document.getElementById('historyOverlay');
+
+    if (!btnToggle) return;
+
+    btnToggle.addEventListener('click', () => {
+        historyPanel.classList.toggle('active');
+        overlay.classList.toggle('active');
+    });
+
+    overlay.addEventListener('click', () => {
+        historyPanel.classList.remove('active');
+        overlay.classList.remove('active');
+    });
+
+    // Show toggle button only on small screens
+    if (window.innerWidth < 1400) {
+        btnToggle.style.display = 'inline-block';
+    }
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth < 1400) {
+            btnToggle.style.display = 'inline-block';
+        } else {
+            btnToggle.style.display = 'none';
+            historyPanel.classList.remove('active');
+            overlay.classList.remove('active');
+        }
+    });
 }
 
-function hideResults() {
-    document.getElementById('resultsSection').classList.add('hidden');
+// ============================================================================
+// THEME TOGGLE
+// ============================================================================
+
+function initializeTheme() {
+    const btnTheme = document.getElementById('btnTheme');
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    btnTheme.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+
+        showToast(`Theme: ${newTheme} mode`);
+    });
 }
 
-// Notifications
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
-    // Add to page
-    document.body.appendChild(notification);
+function showToast(message) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
 
-    // Animate in
-    setTimeout(() => notification.classList.add('show'), 10);
+    container.appendChild(toast);
 
-    // Remove after 3 seconds
     setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 300);
+        toast.remove();
     }, 3000);
 }
 
-// Utilities
+function truncate(text, maxLength) {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+
+    // Less than 1 minute
+    if (diff < 60000) return 'Just now';
+
+    // Less than 1 hour
+    if (diff < 3600000) {
+        const mins = Math.floor(diff / 60000);
+        return `${mins}m ago`;
+    }
+
+    // Less than 24 hours
+    if (diff < 86400000) {
+        const hours = Math.floor(diff / 3600000);
+        return `${hours}h ago`;
+    }
+
+    // Otherwise, show date
+    return date.toLocaleDateString();
+}
+
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-function updateCharacterCount() {
-    const content = document.getElementById('content');
-    const count = content.value.length;
-    const hint = content.nextElementSibling;
-    hint.textContent = `${count} / 10,000 characters`;
+function getClassificationLabel(score) {
+    if (score > 0.7) return 'Likely Fake';
+    if (score > 0.5) return 'Suspicious';
+    if (score > 0.3) return 'Mixed Signals';
+    return 'Likely Credible';
+}
 
-    if (count > 10000) {
-        hint.classList.add('error');
-    } else {
-        hint.classList.remove('error');
+// ============================================================================
+// UNCERTAINTY RENDERING HELPERS
+// ============================================================================
+
+function renderUncertaintyOverview(result) {
+    const uncertainty = result.uncertainty || null;
+    const summaryEl = document.getElementById('uncertaintySummary');
+    const hintEl = document.getElementById('ciTextHint');
+
+    if (!uncertainty) {
+        if (window.Visualizations) {
+            Visualizations.destroyChart('uncertaintyGauge');
+            Visualizations.destroyChart('confidenceBandChart');
+        }
+        if (summaryEl) summaryEl.textContent = '';
+        if (hintEl) hintEl.textContent = '';
+        return;
+    }
+
+    // Render uncertainty gauge
+    if (window.Visualizations && uncertainty.entropy !== undefined) {
+        Visualizations.createUncertaintyGauge('uncertaintyGauge', uncertainty.entropy);
+    }
+
+    // Render confidence interval chart
+    if (window.Visualizations && uncertainty.confidenceInterval) {
+        const [ciLower, ciUpper] = uncertainty.confidenceInterval;
+        Visualizations.createConfidenceBandChart(
+            'confidenceBandChart',
+            result.credibilityScore,
+            ciLower,
+            ciUpper
+        );
+    }
+
+    // Update summary text
+    if (summaryEl) {
+        const entropy = uncertainty.entropy || 0;
+        let desc = entropy < 0.2 ? 'highly confident' : entropy < 0.5 ? 'moderately confident' : 'uncertain';
+        summaryEl.textContent = `Entropy ${entropy.toFixed(3)} – model is ${desc} about this classification.`;
+    }
+
+    // Update CI hint
+    if (hintEl && uncertainty.confidenceInterval) {
+        const [lower, upper] = uncertainty.confidenceInterval;
+        const width = upper - lower;
+        if (width < 0.1) {
+            hintEl.textContent = 'Narrow CI indicates precise estimate with low variance across MC samples.';
+        } else if (width < 0.3) {
+            hintEl.textContent = 'Moderate CI width suggests some model disagreement across dropout samples.';
+        } else {
+            hintEl.textContent = 'Wide CI indicates high uncertainty – model predictions vary significantly.';
+        }
     }
 }
+
+function renderUncertaintyBreakdown(uncertainty) {
+    const el = document.getElementById('uncertaintyBreakdown');
+    if (!el) return;
+
+    if (!uncertainty) {
+        el.innerHTML = '<p class="hint">No uncertainty data available.</p>';
+        return;
+    }
+
+    const { entropy, variance, stdDev, mcSamples, confidenceInterval } = uncertainty;
+    const [ciLow, ciHigh] = confidenceInterval || [];
+
+    el.innerHTML = `
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Entropy:</strong> ${entropy?.toFixed(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Variance:</strong> ${variance?.toExponential(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>Std Dev:</strong> ${stdDev?.toFixed(3) ?? 'N/A'}</li>
+            <li style="padding: 8px 0; border-bottom: 1px solid var(--muted);"><strong>MC Samples:</strong> ${mcSamples ?? 'N/A'}</li>
+            <li style="padding: 8px 0;"><strong>95% CI:</strong> [${ciLow?.toFixed(2) ?? '--'}, ${ciHigh?.toFixed(2) ?? '--'}]</li>
+        </ul>
+        <p class="hint" style="margin-top: 12px; font-size: 12px;">
+            Lower entropy and variance indicate more reliable predictions. High entropy suggests the model is unsure.
+        </p>
+    `;
+}
+
+// ============================================================================
+// GLOBAL ERROR HANDLING
+// ============================================================================
+
+window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+});
+
+console.log('✅ app.js loaded successfully');

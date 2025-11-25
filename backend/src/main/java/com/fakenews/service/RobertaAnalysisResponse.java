@@ -17,6 +17,7 @@ public class RobertaAnalysisResponse {
     private Map writingQuality;
     private List extractedClaims;
     private RiskLevel riskLevel;
+    private Uncertainty uncertainty; // NEW: Uncertainty metrics from Python service
     private Double processingTimeMs;
     private String timestamp;
     private String modelVersion;
@@ -26,5 +27,14 @@ public class RobertaAnalysisResponse {
         private String level;
         private String icon;
         private String description;
+    }
+
+    @Data
+    public static class Uncertainty {
+        private Double entropy;
+        private Double variance;
+        private Double stdDev;
+        private List<Double> confidenceInterval;
+        private Integer mcSamples;
     }
 }
