@@ -63,7 +63,14 @@ const DEMO_DATA = {
                 { word: "UNBELIEVABLE", importance: 0.92 },
                 { word: "CATASTROPHIC", importance: 0.88 },
                 { word: "TERRIFIED", importance: 0.85 }
-            ]
+            ],
+            uncertainty: {
+                entropy: 0.18,
+                variance: 0.0012,
+                stdDev: 0.035,
+                confidenceInterval: [0.87, 0.91],
+                mcSamples: 20
+            }
         }
     },
 
@@ -122,7 +129,14 @@ const DEMO_DATA = {
                 { word: "report", importance: 0.35 },
                 { word: "study", importance: 0.32 },
                 { word: "research", importance: 0.28 }
-            ]
+            ],
+            uncertainty: {
+                entropy: 0.12,
+                variance: 0.0005,
+                stdDev: 0.022,
+                confidenceInterval: [0.16, 0.20],
+                mcSamples: 20
+            }
         }
     },
 
@@ -182,7 +196,14 @@ const DEMO_DATA = {
                 { word: "AMAZING", importance: 0.75 },
                 { word: "SHOCKED", importance: 0.68 },
                 { word: "breakthrough", importance: 0.55 }
-            ]
+            ],
+            uncertainty: {
+                entropy: 0.42,
+                variance: 0.0098,
+                stdDev: 0.099,
+                confidenceInterval: [0.44, 0.60],
+                mcSamples: 20
+            }
         }
     },
 
@@ -241,7 +262,14 @@ const DEMO_DATA = {
             topWords: [
                 { word: "reported", importance: 0.28 },
                 { word: "stated", importance: 0.25 }
-            ]
+            ],
+            uncertainty: {
+                entropy: 0.08,
+                variance: 0.0003,
+                stdDev: 0.017,
+                confidenceInterval: [0.10, 0.14],
+                mcSamples: 20
+            }
         }
     },
 
@@ -297,7 +325,14 @@ const DEMO_DATA = {
             topWords: [
                 { word: "guidelines", importance: 0.45 },
                 { word: "health", importance: 0.38 }
-            ]
+            ],
+            uncertainty: {
+                entropy: 0.35,
+                variance: 0.0062,
+                stdDev: 0.079,
+                confidenceInterval: [0.58, 0.70],
+                mcSamples: 20
+            }
         }
     }
 };

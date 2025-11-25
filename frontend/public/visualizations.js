@@ -219,6 +219,209 @@ const Visualizations = (function () {
         return chart;
     }
 
+    // Create uncertainty gauge (entropy visualization)
+    function createUncertaintyGauge(canvasId, entropy) {
+        if (!isChartJsAvailable()) return null;
+
+        destroyChart(canvasId);
+
+        const percentage = Math.round(entropy * 100);
+        const remaining = 100 - percentage;
+
+        // Color based on entropy: 0-0.2 = green (confident), 0.2-0.5 = yellow, 0.5-1.0 = red (uncertain)
+        let color;
+        let label;
+        if (entropy < 0.2) {
+            color = '#10b981'; // green
+            label = 'Highly Confident';
+        } else if (entropy < 0.5) {
+            color = '#eab308'; // yellow
+            label = 'Moderately Confident';
+        } else {
+            color = '#ef4444'; // red
+            label = 'Uncertain';
+        }
+
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [`Uncertainty (${percentage}%)`, 'Certainty'],
+                datasets: [{
+                    data: [percentage, remaining],
+                    backgroundColor: [color, 'rgba(200, 200, 200, 0.2)'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                id: 'centerText',
+                beforeDraw: (chart) => {
+                    const width = chart.width;
+                    const height = chart.height;
+                    const ctx = chart.ctx;
+                    ctx.restore();
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = color;
+                    const text = label;
+                    const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                    const textY = height / 2;
+                    ctx.fillText(text, textX, textY);
+                    ctx.save();
+                }
+            }]
+        });
+
+        chartInstances[canvasId] = chart;
+        return chart;
+    }
+
+    // Create confidence interval band chart
+    function createConfidenceBandChart(canvasId, credibilityScore, ciLower, ciUpper) {
+        if (!isChartJsAvailable() || ciLower === undefined || ciUpper === undefined) return null;
+
+        destroyChart(canvasId);
+
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Credibility Score'],
+                datasets: [{
+                    label: '95% Confidence Interval',
+                    data: [[ciLower * 100, ciUpper * 100]],
+                    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 2,
+                    borderSkipped: false
+                }, {
+                    label: 'Point Estimate',
+                    data: [credibilityScore * 100],
+                    backgroundColor: '#6366f1',
+                    borderWidth: 0,
+                    barThickness: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                if (context.datasetIndex === 0) {
+                                    return `CI: [${ciLower.toFixed(2)}, ${ciUpper.toFixed(2)}]`;
+                                }
+                                return `Score: ${credibilityScore.toFixed(2)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: (value) => value + '%' }
+                    }
+                }
+            }
+        });
+
+        chartInstances[canvasId] = chart;
+        return chart;
+    }
+
+    // Create uncertainty over time chart
+    function createUncertaintyTimeSeriesChart(canvasId, points) {
+        if (!isChartJsAvailable() || !points || points.length === 0) return null;
+
+        destroyChart(canvasId);
+
+        const labels = points.map((p, i) => {
+            const date = new Date(p.timestamp);
+            return `#${i + 1} ${date.toLocaleTimeString()}`;
+        });
+
+        const credibilityData = points.map(p => p.credibilityScore * 100);
+        const entropyData = points.map(p => (p.entropy !== null && p.entropy !== undefined) ? p.entropy * 100 : null);
+
+        const datasets = [{
+            label: 'Credibility Risk %',
+            data: credibilityData,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            yAxisID: 'y'
+        }];
+
+        // Only add entropy if we have data
+        if (entropyData.some(v => v !== null)) {
+            datasets.push({
+                label: 'Uncertainty (Entropy) %',
+                data: entropyData,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                fill: false,
+                tension: 0.4,
+                pointRadius: 4,
+                borderDash: [5, 5],
+                yAxisID: 'y'
+            });
+        }
+
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: (value) => value + '%' }
+                    }
+                }
+            }
+        });
+
+        chartInstances[canvasId] = chart;
+        return chart;
+    }
+
     // Destroy all charts
     function destroyAllCharts() {
         Object.keys(chartInstances).forEach(id => destroyChart(id));
@@ -231,6 +434,9 @@ const Visualizations = (function () {
         createFeatureChart,
         createTimeSeriesChart,
         createDistributionChart,
+        createUncertaintyGauge,
+        createConfidenceBandChart,
+        createUncertaintyTimeSeriesChart,
         destroyChart,
         destroyAllCharts
     };
