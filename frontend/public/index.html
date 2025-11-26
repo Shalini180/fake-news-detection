@@ -447,6 +447,69 @@
                 padding: 16px 20px;
             }
         }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .card-analyzer {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .card-header p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-control {
+            padding: 12px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--bg-app);
+            width: 100%;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Crimson Pro', 'Georgia', serif;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+        }
     </style>
 </head>
 
@@ -473,6 +536,42 @@
     <div class="app-layout">
         <!-- LEFT PANEL: Query Form -->
         <aside class="panel-left">
+            <div class="card card-analyzer">
+                <div class="card-header">
+                    <h2 class="app-title">📝 Article Analyzer</h2>
+                    <p class="text-muted">Paste content or load a demo scenario to analyze.</p>
+                </div>
+                <!-- Demo Selector -->
+                <div class="form-group">
+                    <label for="demoMode">Quick Demo</label>
+                    <select id="demoMode" class="form-control">
+                        <option value="">Select Demo Scenario...</option>
+                        <option value="credible">✅ Credible Article</option>
+                        <option value="suspicious">⚠️ Suspicious Article</option>
+                        <option value="fake">❌ Fake News</option>
+                        <option value="satire">😄 Satire</option>
+                        <option value="mixed">🔀 Mixed Signals</option>
+                    </select>
+                </div>
+                <!-- Form Inputs -->
+                <div class="form-group">
+                    <label for="articleTitle">Article Title</label>
+                    <input type="text" id="articleTitle" placeholder="Enter article headline...">
+                </div>
+                <div class="form-group">
+                    <label for="articleContent">Article Content *</label>
+                    <textarea id="articleContent" placeholder="Paste the full article text here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="articleSource">Source URL (Optional)</label>
+                    <input type="url" id="articleSource" placeholder="https://example.com/article">
+                </div>
+                <!-- Analyze Button -->
+                <button type="button" id="btnAnalyze" class="btn"
+                    style="width: 100%; padding: 14px; font-size: 15px; font-weight: 600; margin-top: 8px;">
+                    🚀 Analyze Article
+                </button>
+            </div>
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">📝 Analyze Article</h3>
