@@ -168,6 +168,56 @@ function loadDemoScenario(scenarioKey) {
     // Update history display and temporal analytics
     loadSessionHistory();
     updateTemporalAnalytics();
+
+    showToast('✅ Demo data loaded');
+}
+
+// ============================================================================
+// ARTICLE ANALYSIS (API Integration)
+// ============================================================================
+
+async function analyzeArticle() {
+    const title = document.getElementById('articleTitle').value.trim();
+    const content = document.getElementById('articleContent').value.trim();
+    const source = document.getElementById('articleSource').value.trim();
+    if (!content) {
+        showToast('❌ Please enter article content');
+        document.getElementById('articleContent').focus();
+        return;
+    }
+    const btnAnalyze = document.getElementById('btnAnalyze');
+    btnAnalyze.disabled = true;
+    btnAnalyze.textContent = '⏳ Analyzing...';
+    try {
+        // Use window.api.analyze (api.js provides this)
+        const result = await window.api.analyze({ title, content, source });
+
+        console.log('✅ API Result:', result);
+        // Render results
+        renderResults(result);
+        // Add to session
+        SessionManager.addAnalysis(result);
+        // Update UI
+        loadSessionHistory();
+        updateTemporalAnalytics();
+        showToast('✅ Analysis complete');
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        showToast('⚠️ API unavailable - using local simulation');
+        // Fallback simulation
+        const simulated = simulateAnalysis(title, content, source);
+        renderResults(simulated);
+        SessionManager.addAnalysis(simulated);
+        loadSessionHistory();
+        updateTemporalAnalytics();
+    } finally {
+        btnAnalyze.disabled = false;
+        btnAnalyze.textContent = '🚀 Analyze Article';
+    }
+}
+
+// Simple simulation fallback
+function simulateAnalysis(title, content, source) {
     const score = Math.random() * 0.6 + 0.2; // Random score between 0.2-0.8
     const riskLevel = SessionManager.getRiskLevel(score);
 
