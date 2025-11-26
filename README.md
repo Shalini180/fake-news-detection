@@ -1,45 +1,125 @@
-# Fake News Detection
+Fake-News Detection (AI + Full-Stack)
 
-An explainable AI system for detecting fake news using hybrid analysis: RoBERTa transformers + knowledge graph + explainability (LIME, attention mechanisms).
+AI-powered web app that analyzes news articles and evaluates credibility using NLP, source reliability, and claim verification. Includes explainability + visual insights.
 
-## Architecture
+🔹 Live Demo: (Frontend + API deployed on Render)
+🔹 Tech: Java + Spring Boot · JavaScript · Docker · NLP heuristics
 
-- **Backend:** Spring Boot 2.7.14 (Java 11) - REST API, orchestration, knowledge graph
-- **ML Service:** FastAPI + PyTorch - RoBERTa-based content analysis
-- **Frontend:** Vanilla JavaScript SPA - Interactive credibility analysis UI
+⭐ Highlights
 
-## Quick Start
+✅ Real-time fake-news scoring
+✅ NLP-based content analysis
+✅ Domain credibility scoring
+✅ Claim extraction + evidence lookup
+✅ Knowledge-Graph relationships
+✅ Explainability (tokens + top words + reasons)
+✅ Frontend + backend fully deployed
 
-See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed setup instructions.
+🧠 Architecture
+Frontend (HTML + JS)
+       ↓ REST
+Backend (Spring Boot / Java)
+       ↓
+Core ML Logic + NLP + Explainability
+       ↓
+Knowledge Graph + Trie + MinHeap
 
-```bash
-# 1. Start backend (Terminal 1)
-cd backend && mvn spring-boot:run
+🚀 Tech Stack
+Backend
 
-# 2. Start Python ML service (Terminal 2)
-cd python-service && python roberta_service.py
+Java 17 · Spring Boot
 
-# 3. Open frontend
-# Open frontend/public/index.html in browser
-```
+Custom NLP pipeline (RoBERTa placeholder)
 
-## Features
+Knowledge Graph + Trie
 
-✅ Multi-dimensional credibility analysis  
-✅ RoBERTa transformer-based content analysis  
-✅ Domain reputation checking  
-✅ Claim extraction and verification  
-✅ Knowledge graph for cross-referencing  
-✅ Explainability (LIME, attention weights, suspicious phrases)  
-✅ Writing quality analysis (clickbait detection)  
+MinHeap sorting
 
-## Branches
+REST API
 
-- `main` — stable
-- feature branches: `backend/...`, `frontend/...`
+Frontend
 
-## Documentation
+HTML + CSS + Vanilla JS
 
-- [Development Guide](docs/DEVELOPMENT.md) - Local setup, running tests
-- [Production Roadmap](docs/roadmap.md) - Path to production MVP
-- [Technical Audit](docs/codebase_audit_report.md) - Current state analysis
+Light/dark mode
+
+Interactive results
+
+Deployment
+
+Render (Free tier)
+
+Dockerized backend
+
+📡 API Example
+POST /api/v1/analyze
+{
+  "title": "Demo",
+  "content": "BREAKING... unbelievable...",
+  "source": "https://clickbait.net"
+}
+
+
+✅ Returns:
+
+credibility score (0–1)
+
+classification
+
+key reasons
+
+claim count
+
+explainability vectors
+
+🧱 Key Components
+Component	Purpose
+NLP Model	Fake-score + embeddings
+Trie	Domain reputation
+Min-Heap	Least-credible tracking
+Knowledge Graph	Article → Claim → Evidence → Source
+Explainability	Token weights + top words + reasons
+🔍 Scoring Logic
+
+Weighted model:
+
+Feature	Weight
+Content NLP	35%
+Domain credibility	25%
+Claim verification	25%
+Cross-reference	15%
+
+Outputs → LIKELY_FAKE / SUSPICIOUS / MIXED / CREDIBLE
+
+🖥 UI Features
+
+✔ Paste article + analyze
+✔ See credibility score + highlights
+✔ Explainability view:
+– Top tokens
+– Key reasons
+– Top words
+✔ Claim verification
+✔ Local stats
+
+⚙️ Run Locally
+Backend
+cd backend
+mvn package
+java -jar target/fake-news-detection-api-1.0.0.jar
+
+Frontend
+
+Open:
+
+frontend/index.html
+
+📌 Future Work
+
+Integrate real transformer (HuggingFace)
+
+External fact-check APIs
+
+Browser extension
+
+DB persistence
