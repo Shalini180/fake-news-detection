@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fake News Detection – Research Dashboard</title>
+    <title>FactLens – AI-Powered Misinformation Research</title>
     <meta name="description" content="Research-grade misinformation analysis with explainable AI" />
 
     <!-- Google Fonts -->
@@ -14,506 +14,17 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=Crimson+Pro:wght@400;500&display=swap"
         rel="stylesheet">
 
-    <!-- Chart.js for visualizations -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="../styles.css">
-    <link rel="stylesheet" href="layout.css">
-
-    <style>
-        /* Additional inline styles for research dashboard */
-        :root {
-            /* Background Colors */
-            --bg-app: #F9F7F3;
-            --bg-card: #FFFFFF;
-            --border-subtle: #E2E2E2;
-            /* Text Colors */
-            --text-main: #1A1A1A;
-            --text-muted: #6B6B6B;
-            /* Risk Level Colors */
-            --risk-low: #3A9D56;
-            --risk-medium: #F4A261;
-            --risk-high: #D84343;
-            /* Legacy token for compatibility */
-            --primary-rgb: 139, 92, 246;
-        }
-
-        /* Base Typography */
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg-app);
-            color: var(--text-main);
-        }
-
-        .app-title {
-            font-family: 'Playfair Display', serif;
-        }
-
-        .article-body {
-            font-family: 'Crimson Pro', 'Georgia', serif;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--surface);
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(100px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .hint {
-            color: var(--muted);
-            font-size: 13px;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .btn-icon {
-            background: transparent;
-            border: 1px solid var(--muted);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s;
-        }
-
-        .btn-icon:hover {
-            background: var(--bg-elev);
-            border-color: var(--primary);
-        }
-
-        .btn,
-        .btn-secondary {
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, var(--primary), var(--primary-2));
-            color: white;
-        }
-
-        .btn-secondary {
-            background: var(--bg-elev);
-            color: var(--text);
-            border: 1px solid var(--muted);
-        }
-
-        .btn:hover,
-        .btn-secondary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .gauge-container {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .gauge-label {
-            margin-top: 16px;
-            text-align: center;
-        }
-
-        #gaugeScore {
-            display: block;
-            font-size: 32px;
-            font-weight: 800;
-            margin-bottom: 4px;
-        }
-
-        #gaugeLabel {
-            display: block;
-            font-size: 14px;
-            color: var(--muted);
-        }
-
-        .risk-badge-container {
-            padding: 20px;
-            text-align: center;
-        }
-
-        .risk-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 16px;
-        }
-
-        .attention-strip {
-            padding: 16px;
-            background: var(--bg-elev);
-            border-radius: 12px;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        .attention-token {
-            display: inline-block;
-            padding: 6px 10px;
-            margin: 2px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-family: monospace;
-        }
-
-        .claims-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .claim-item {
-            padding: 16px;
-            background: var(--bg-elev);
-            border-radius: 10px;
-            border-left: 4px solid var(--primary);
-        }
-
-        .claim-text {
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .claim-meta {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            font-size: 12px;
-        }
-
-        .claim-status {
-            padding: 4px 8px;
-            border-radius: 999px;
-            font-weight: 600;
-            color: white;
-        }
-
-        .status-VERIFIED {
-            background: #10b981;
-        }
-
-        .status-SUPPORTED {
-            background: #3b82f6;
-        }
-
-        .status-PENDING {
-            background: #f59e0b;
-        }
-
-        .status-UNVERIFIED {
-            background: #6b7280;
-        }
-
-        .status-CONTRADICTED {
-            background: #ef4444;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .metric-card {
-            padding: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-2));
-            border-radius: 12px;
-            text-align: center;
-            color: white;
-        }
-
-        .metric-value {
-            font-size: 32px;
-            font-weight: 900;
-            margin-bottom: 8px;
-        }
-
-        .metric-label {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-
-        .limitations-panel {
-            padding: 20px;
-            background: var(--bg-elev);
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        .limitations-panel ul {
-            margin: 0;
-            padding-left: 20px;
-        }
-
-        .limitations-panel li {
-            margin: 8px 0;
-            color: var(--muted);
-        }
-
-        .comparison-controls {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .btn-close {
-            background: transparent;
-            border: none;
-            font-size: 32px;
-            cursor: pointer;
-            color: var(--muted);
-            padding: 0;
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-        }
-
-        .btn-close:hover {
-            background: var(--bg-elev);
-            color: var(--text);
-        }
-
-        .overview-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        @media (max-width: 768px) {
-            .overview-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .key-reasons-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .key-reasons-list li {
-            padding: 10px 12px;
-            background: var(--bg-elev);
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border-left: 3px solid var(--primary);
-        }
-
-        .filter-btn {
-            padding: 6px 12px;
-            border-radius: 999px;
-            border: 1px solid var(--muted);
-            background: transparent;
-            cursor: pointer;
-            font-size: 12px;
-            margin-right: 6px;
-            margin-bottom: 6px;
-            transition: all 0.2s;
-        }
-
-        .filter-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .suspicious-phrases-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .suspicious-phrase-item {
-            padding: 12px;
-            background: var(--bg-elev);
-            border-radius: 8px;
-            border-left: 3px solid #ef4444;
-        }
-
-        .phrase-text {
-            font-weight: 600;
-            color: #ef4444;
-            margin-bottom: 4px;
-        }
-
-        .phrase-reason {
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        /* Header */
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 64px;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .header-left {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .header-right {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        /* Three-Column Layout */
-        .app-layout {
-            display: grid;
-            grid-template-columns: 320px minmax(0, 1fr) 320px;
-            gap: 24px;
-            padding: 24px 64px 32px;
-            max-width: 1800px;
-            margin: 0 auto;
-        }
-
-        .panel-left,
-        .panel-right {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .panel-center {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            min-width: 0;
-        }
-
-        /* Responsive */
-        @media (max-width: 1400px) {
-            .app-layout {
-                grid-template-columns: 280px minmax(0, 1fr);
-                padding: 24px 32px;
-            }
-
-            .panel-right {
-                display: none;
-            }
-        }
-
-        @media (max-width: 900px) {
-            .app-header {
-                padding: 16px 20px;
-            }
-
-            .app-title {
-                font-size: 22px;
-            }
-
-            .app-layout {
-                grid-template-columns: 1fr;
-                padding: 16px 20px;
-            }
-        }
-
-        .card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-            border: 1px solid var(--border-subtle);
-        }
-
-        .card-analyzer {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card-header h2 {
-            font-size: 20px;
-            margin-bottom: 4px;
-            font-weight: 700;
-        }
-
-        .card-header p {
-            font-size: 14px;
-            margin: 0;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .form-group label {
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--text-main);
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-control {
-            padding: 12px;
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            background: var(--bg-app);
-            width: 100%;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 120px;
-            font-family: 'Crimson Pro', 'Georgia', serif;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
     <!-- Application Header -->
     <header class="app-header">
         <div class="header-left">
@@ -521,108 +32,265 @@
             <div class="app-subtitle">AI-Powered Misinformation Research</div>
         </div>
         <div class="header-right">
-            <select id="demoMode"
-                style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 14px;">
-                <option value="">Select Demo...</option>
-                <option value="credible">✅ Credible Article</option>
-                <option value="suspicious">⚠️ Suspicious Article</option>
-                <option value="fake">❌ Fake News</option>
-                <option value="satire">😄 Satire</option>
-                <option value="mixed">🔀 Mixed Signals</option>
-            </select>
+            <button id="btnToggleTheme" class="btn-ghost" type="button">🌗 Theme</button>
+            <button id="btnExportSession" class="btn-ghost" type="button">⬇ Export Session</button>
         </div>
     </header>
-    <!-- Main Application Layout -->
+
+    <!-- Main Three-Column Layout -->
     <div class="app-layout">
-        <!-- LEFT PANEL: Query Form -->
+
+        <!-- ========== LEFT PANEL: Article Analyzer ========== -->
         <aside class="panel-left">
             <div class="card card-analyzer">
                 <div class="card-header">
                     <h2 class="app-title">📝 Article Analyzer</h2>
-                    <p class="text-muted">Paste content or load a demo scenario to analyze.</p>
+                    <p class="text-muted">Paste content or load a demo to analyze.</p>
                 </div>
-                <!-- Demo Selector -->
-                <div class="form-group">
-                    <label for="demoMode">Quick Demo</label>
-                    <select id="demoMode" class="form-control">
-                        <option value="">Select Demo Scenario...</option>
+
+                <label for="articleTitle">Title (optional)</label>
+                <input id="articleTitle" type="text"
+                    placeholder="BREAKING: SHOCKING Discovery That Changes EVERYTHING!!!" />
+
+                <label for="articleContent">Article Content</label>
+                <textarea id="articleContent" rows="10" placeholder="Paste your article text here..."></textarea>
+
+                <label for="articleSource">Source URL (optional)</label>
+                <input id="articleSource" type="url" placeholder="https://example.com/article" />
+
+                <button id="btnAnalyze" class="btn-primary" type="button">
+                    🚀 Analyze Article
+                </button>
+
+                <div class="demo-controls">
+                    <select id="demoSelector" class="demo-select">
+                        <option value="">Select Demo...</option>
                         <option value="credible">✅ Credible Article</option>
                         <option value="suspicious">⚠️ Suspicious Article</option>
                         <option value="fake">❌ Fake News</option>
                         <option value="satire">😄 Satire</option>
                         <option value="mixed">🔀 Mixed Signals</option>
                     </select>
-                </div>
-                <!-- Form Inputs -->
-                <div class="form-group">
-                    <label for="articleTitle">Article Title</label>
-                    <input type="text" id="articleTitle" placeholder="Enter article headline...">
-                </div>
-                <div class="form-group">
-                    <label for="articleContent">Article Content *</label>
-                    <textarea id="articleContent" placeholder="Paste the full article text here..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="articleSource">Source URL (Optional)</label>
-                    <input type="url" id="articleSource" placeholder="https://example.com/article">
-                    <button class="tab-btn" data-tab="explanations">💡 Explanations</button>
-                    <button class="tab-btn" data-tab="claims">🔍 Claims</button>
-                    <button class="tab-btn" data-tab="temporal">📈 Temporal</button>
-                </div>
-                <!-- Tab Panels -->
-                <div id="overview" class="tab-panel active">
-                    <div class="card">
-                        <h3 class="card-title">Analysis Results</h3>
-                        <div id="resultsContainer">
-                            <p class="hint">👆 Enter article content and click "Analyze Article" to begin</p>
-                        </div>
-                    </div>
-                </div>
-                <div id="explanations" class="tab-panel">
-                    <div class="card">
-                        <h3 class="card-title">Explainability</h3>
-                        <div id="explanationsContainer">
-                            <p class="hint">Analysis explanations will appear here</p>
-                        </div>
-                    </div>
-                </div>
-                <div id="claims" class="tab-panel">
-                    <div class="card">
-                        <h3 class="card-title">Extracted Claims</h3>
-                        <div id="claimsContainer">
-                            <p class="hint">Extracted claims will appear here</p>
-                        </div>
-                    </div>
-                </div>
-                <div id="temporal" class="tab-panel">
-                    <div class="card">
-                        <h3 class="card-title">Temporal Analytics</h3>
-                        <div id="temporalContainer">
-                            <p class="hint">Temporal data will appear here</p>
-                        </div>
-                    </div>
+                    <button id="btnLoadDemo" class="btn-ghost" type="button">
+                        🎬 Load Demo
+                    </button>
                 </div>
             </div>
-            </main>
-            <!-- RIGHT PANEL: History -->
-            <aside class="panel-right">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">📚 History</h3>
-                        <button class="btn-icon" id="btnClearHistory" title="Clear all">🗑️</button>
+        </aside>
+
+        <!-- ========== CENTER PANEL: Tabs + Content ========== -->
+        <main class="panel-center">
+
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn" data-tab="explanations">Explanations</button>
+                <button class="tab-btn" data-tab="claims">Claims & Evidence</button>
+                <button class="tab-btn" data-tab="temporal">Temporal</button>
+                <button class="tab-btn" data-tab="system">System</button>
+            </nav>
+
+            <!-- Tab Contents -->
+            <div class="tab-contents">
+
+                <!-- ===== OVERVIEW TAB ===== -->
+                <section id="tab-overview" class="tab-content active">
+
+                    <!-- Credibility Overview + Key Reasons -->
+                    <section class="card card-overview-top">
+                        <div class="card-row">
+                            <div class="card-col">
+                                <h3>🔍 Credibility Overview</h3>
+                                <canvas id="credibilityGauge"></canvas>
+                                <div class="gauge-meta">
+                                    <span id="gaugeScore">--%</span>
+                                    <span id="gaugeLabel">Awaiting analysis</span>
+                                    <span id="riskBadge" class="badge-risk">Pending</span>
+                                </div>
+                            </div>
+                            <div class="card-col">
+                                <h3>🧠 Key Reasons</h3>
+                                <ul id="keyReasonsList" class="list-reasons">
+                                    <!-- JS populates reasons -->
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Uncertainty & Confidence -->
+                    <section class="card card-overview-uncertainty">
+                        <div class="card-header-inline">
+                            <h3 class="app-title">📉 Uncertainty & Confidence</h3>
+                        </div>
+                        <div class="uncertainty-grid">
+                            <div class="uncertainty-left">
+                                <canvas id="uncertaintyGauge"></canvas>
+                                <p id="uncertaintySummary" class="text-muted">
+                                    <!-- populated by formatUncertaintySummary() -->
+                                </p>
+                            </div>
+                            <div class="uncertainty-right">
+                                <canvas id="confidenceBandChart"></canvas>
+                                <p id="ciTextHint" class="tiny-muted">
+                                    <!-- populated by formatConfidenceIntervalHint() -->
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                </section>
+
+                <!-- ===== EXPLANATIONS TAB ===== -->
+                <section id="tab-explanations" class="tab-content">
+                    <div class="explanations-grid">
+
+                        <section class="card card-attention">
+                            <h3>🧠 Attention Heatmap</h3>
+                            <div id="attentionHeatmap" class="attention-container article-body"></div>
+                        </section>
+
+                        <section class="card card-features">
+                            <h3>📊 Feature Importance</h3>
+                            <canvas id="featureChart"></canvas>
+                        </section>
+
+                        <section class="card card-phrases">
+                            <h3>🚩 Suspicious Phrases</h3>
+                            <div id="suspiciousPhrases" class="phrases-grid"></div>
+                        </section>
+
+                        <section class="card card-breakdown">
+                            <h3>📐 Uncertainty Breakdown</h3>
+                            <table id="uncertaintyBreakdown" class="data-table">
+                                <!-- renderUncertaintyBreakdown() fills rows -->
+                            </table>
+                        </section>
+
                     </div>
-                    <div id="sessionHistory" class="history-list">
-                        <p class="hint">Analysis history will appear here</p>
+                </section>
+
+                <!-- ===== CLAIMS & EVIDENCE TAB ===== -->
+                <section id="tab-claims" class="tab-content">
+                    <section class="card card-claims-main">
+                        <div class="claims-header-row">
+                            <h3>🧾 Claims & Evidence</h3>
+                            <div class="claim-filters">
+                                <button class="btn-ghost claim-filter active" data-filter="all">All</button>
+                                <button class="btn-ghost claim-filter" data-filter="verified">Verified</button>
+                                <button class="btn-ghost claim-filter" data-filter="unverified">Unverified</button>
+                                <button class="btn-ghost claim-filter" data-filter="disputed">Disputed</button>
+                            </div>
+                        </div>
+
+                        <div class="claims-layout">
+                            <div class="claims-list" id="claimsList">
+                                <!-- JS populates claims -->
+                            </div>
+                            <div class="claims-graph">
+                                <h4>Knowledge Graph Map</h4>
+                                <div id="knowledgeGraph"></div>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- ===== TEMPORAL TAB ===== -->
+                <section id="tab-temporal" class="tab-content">
+                    <div class="temporal-grid">
+
+                        <section class="card">
+                            <h3>⏱ Credibility Trends Over Time</h3>
+                            <canvas id="timeSeriesChart"></canvas>
+                        </section>
+
+                        <section class="card">
+                            <h3>📊 Score Distribution</h3>
+                            <canvas id="distributionChart"></canvas>
+                        </section>
+
                     </div>
+                </section>
+
+                <!-- ===== SYSTEM TAB ===== -->
+                <section id="tab-system" class="tab-content">
+
+                    <div class="system-stats-grid">
+                        <div class="card stat-card">
+                            <h4>Total Analyses</h4>
+                            <p id="statTotalAnalyses" class="stat-value">0</p>
+                        </div>
+                        <div class="card stat-card">
+                            <h4>Avg Credibility</h4>
+                            <p id="statAvgCredibility" class="stat-value">--%</p>
+                        </div>
+                        <div class="card stat-card">
+                            <h4>High Risk Count</h4>
+                            <p id="statHighRisk" class="stat-value">0</p>
+                        </div>
+                        <div class="card stat-card">
+                            <h4>Session Duration</h4>
+                            <p id="statDuration" class="stat-value">0m</p>
+                        </div>
+                    </div>
+
+                    <section class="card card-limitations">
+                        <h4>⚠️ Model Limitations</h4>
+                        <p>FactLens is an assistive tool designed to support human judgment, not replace it. Please be
+                            aware of the following limitations:</p>
+                        <ul>
+                            <li>The model may produce false positives or false negatives</li>
+                            <li>Performance varies with article length, language, and domain</li>
+                            <li>Emerging manipulation techniques may not be detected</li>
+                            <li>Cultural context and nuance may be missed</li>
+                            <li>Always verify critical information with multiple sources</li>
+                        </ul>
+                    </section>
+
+                </section>
+
+            </div>
+        </main>
+
+        <!-- ========== RIGHT PANEL: History ========== -->
+        <aside class="panel-right">
+            <div class="history-panel">
+                <h3>📊 Session History</h3>
+                <div id="historyList">
+                    <!-- JS will add .history-item entries -->
                 </div>
-            </aside>
+                <button id="btnClearHistory" class="btn-ghost" type="button">
+                    🗑️ Clear History
+                </button>
+            </div>
+        </aside>
+
     </div>
-    <!-- Toast Notifications -->
-    <div id="toastContainer"></div>
+
+    <!-- Mobile History Overlay -->
+    <div id="historyOverlay" class="history-overlay">
+        <div class="history-overlay-content">
+            <h3>Session History</h3>
+            <div id="historyListMobile">
+                <!-- mobile rendering -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <h3>Compare Analyses</h3>
+            <div id="comparisonGrid" class="comparison-grid">
+                <!-- JS fills in comparison columns -->
+            </div>
+            <button id="btnCloseComparison" class="btn-ghost" type="button">Close</button>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="api.js"></script>
-    <script src="visualizations.js"></script>
-    <script src="../app.js"></script>
+    <script src="visualizations.js" defer></script>
+    <script src="app.js" defer></script>
 </body>
 
 </html>
