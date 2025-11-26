@@ -1478,27 +1478,39 @@
             compareList: [],
 
             analyze: async () => {
-                const title = UI.elements.articleTitle.value;
-                const content = UI.elements.articleContent.value;
-                const source = UI.elements.articleSource.value;
+                const title = UI.elements.articleTitle.value.trim();
+                const content = UI.elements.articleContent.value.trim();
+                const source = UI.elements.articleSource.value.trim();
 
-                if (!content) return UI.toast('❌ Please enter content.');
+                if (!content) return UI.toast('❌ Please enter content to analyze.');
 
                 UI.setLoading(true);
 
+                // 🔍 DIAGNOSTIC LOG
+                console.log(`🚀 Initiating Analysis... Endpoint: ${CONFIG.API_BASE}/analyze`);
+                console.log(`📝 Content length: ${content.length} chars`);
+
                 try {
-                    // Real API Call
+                    // Real API Call with explicit CORS mode
                     const response = await fetch(`${CONFIG.API_BASE}/analyze`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        mode: 'cors',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
                         body: JSON.stringify({ title, content, source })
                     });
+
+                    console.log('📡 Response Status:', response.status, response.statusText);
 
                     let result;
                     if (response.ok) {
                         result = await response.json();
+                        console.log('✅ API Success:', result);
                     } else {
-                        throw new Error('API Failed');
+                        const errorText = await response.text();
+                        throw new Error(`API Error (${response.status}): ${errorText}`);
                     }
 
                     // Add computed fields if missing (Safety fallback)
@@ -1519,8 +1531,12 @@
                     }
 
                 } catch (error) {
-                    console.warn('API Error, using simulation:', error);
-                    UI.toast('⚠️ Backend unavailable. Using Simulation.');
+                    console.error('🔥 Analysis Failed:', error);
+                    console.error('   Error name:', error.name);
+                    console.error('   Error message:', error.message);
+
+                    // Show specific error in toast before falling back
+                    UI.toast(`⚠️ Connection Failed: ${error.message}. Using Simulation.`);
 
                     // Fallback Simulation
                     const simScore = Math.random();
