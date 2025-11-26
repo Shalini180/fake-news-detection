@@ -565,49 +565,6 @@
                 <div class="form-group">
                     <label for="articleSource">Source URL (Optional)</label>
                     <input type="url" id="articleSource" placeholder="https://example.com/article">
-                </div>
-                <!-- Analyze Button -->
-                <button type="button" id="btnAnalyze" class="btn"
-                    style="width: 100%; padding: 14px; font-size: 15px; font-weight: 600; margin-top: 8px;">
-                    🚀 Analyze Article
-                </button>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">📝 Analyze Article</h3>
-                </div>
-                <form id="analysisForm" style="display: flex; flex-direction: column; gap: 16px;">
-                    <div>
-                        <label
-                            style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Title</label>
-                        <input type="text" id="articleTitle" placeholder="Article headline..."
-                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px;">
-                    </div>
-                    <div>
-                        <label
-                            style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Content</label>
-                        <textarea id="articleContent" rows="8" placeholder="Paste article text here..."
-                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px; font-family: var(--font-mono); resize: vertical;"></textarea>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Source URL
-                            (Optional)</label>
-                        <input type="url" id="articleSource" placeholder="https://example.com/article"
-                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px;">
-                    </div>
-                    <button type="button" id="btnAnalyze" class="btn"
-                        style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;">
-                        🚀 Analyze Article
-                    </button>
-                </form>
-            </div>
-        </aside>
-        <!-- CENTER PANEL: Results Tabs -->
-        <main class="panel-center">
-            <div class="tab-container">
-                <!-- Tab Navigation -->
-                <div class="tab-nav">
-                    <button class="tab-btn active" data-tab="overview">📊 Overview</button>
                     <button class="tab-btn" data-tab="explanations">💡 Explanations</button>
                     <button class="tab-btn" data-tab="claims">🔍 Claims</button>
                     <button class="tab-btn" data-tab="temporal">📈 Temporal</button>
@@ -646,19 +603,19 @@
                     </div>
                 </div>
             </div>
-        </main>
-        <!-- RIGHT PANEL: History -->
-        <aside class="panel-right">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">📚 History</h3>
-                    <button class="btn-icon" id="btnClearHistory" title="Clear all">🗑️</button>
+            </main>
+            <!-- RIGHT PANEL: History -->
+            <aside class="panel-right">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📚 History</h3>
+                        <button class="btn-icon" id="btnClearHistory" title="Clear all">🗑️</button>
+                    </div>
+                    <div id="sessionHistory" class="history-list">
+                        <p class="hint">Analysis history will appear here</p>
+                    </div>
                 </div>
-                <div id="sessionHistory" class="history-list">
-                    <p class="hint">Analysis history will appear here</p>
-                </div>
-            </div>
-        </aside>
+            </aside>
     </div>
     <!-- Toast Notifications -->
     <div id="toastContainer"></div>
