@@ -470,6 +470,64 @@
             transform: translateY(0);
             opacity: 1;
         }
+
+        /* --- UNCERTAINTY LAB STYLES --- */
+        .uncertainty-summary-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .uncertainty-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Confidence levels */
+        .uncertainty-pill.low {
+            background: #E6F4EA;
+            color: var(--risk-low);
+        }
+
+        .uncertainty-pill.medium {
+            background: #FEF3E6;
+            color: var(--risk-medium);
+        }
+
+        .uncertainty-pill.high {
+            background: #FCE8E8;
+            color: var(--risk-high);
+        }
+
+        .uncertainty-legend {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .help-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid var(--border-subtle);
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            color: var(--text-muted);
+        }
+
+        .help-icon:hover {
+            border-color: var(--text-muted);
+        }
     </style>
 </head>
 
@@ -582,30 +640,64 @@
                     </div>
                 </section>
 
-                <!-- Uncertainty Card -->
+                <!-- Uncertainty Card (Redesigned) -->
                 <section class="card">
                     <div class="card-header-inline">
                         <h3>📉 Uncertainty Lab</h3>
-                        <span class="text-muted" style="font-size: 12px;">Model Confidence Metrics</span>
+                        <span class="text-muted" style="font-size: 12px;">How sure is the model?</span>
                     </div>
+
+                    <!-- Netflix-style summary row -->
+                    <div class="uncertainty-summary-row" style="margin-bottom: 16px;">
+                        <span id="uncertaintyBadge" class="uncertainty-pill">Confidence: --</span>
+                        <p id="uncertaintyNarrative" class="text-muted" style="font-size: 13px; margin: 0 0 0 8px;">
+                            Run an analysis to see how confident the model is.
+                        </p>
+                    </div>
+
                     <div class="grid-2">
+                        <!-- Left: Entropy Gauge -->
                         <div>
-                            <label style="text-align: center;">Entropy (Confusion)</label>
+                            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                                <label style="margin: 0;">Model confusion</label>
+                                <span class="help-icon"
+                                    title="This measures how 'spread out' the model's belief is. Low confusion = more confident, high confusion = less confident.">?</span>
+                            </div>
                             <div style="height: 100px; position: relative;">
                                 <canvas id="uncertaintyGauge"></canvas>
-                                <div style="position: absolute; bottom: 10px; width: 100%; text-align: center; font-weight: 600; font-size: 18px;"
-                                    id="uncertaintyValue">--</div>
+                                <div id="uncertaintyValue"
+                                    style="position: absolute; bottom: 10px; width: 100%; text-align: center; font-weight: 600; font-size: 18px;">
+                                    --</div>
+                            </div>
+
+                            <!-- Tiny legend -->
+                            <div class="uncertainty-legend">
+                                <span>Low confusion</span>
+                                <span>Medium</span>
+                                <span>High</span>
                             </div>
                         </div>
+
+                        <!-- Right: Confidence Interval -->
                         <div>
-                            <label>95% Confidence Interval</label>
+                            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                                <label style="margin: 0;">Score range (95% CI)</label>
+                                <span class="help-icon"
+                                    title="We expect the true credibility score to fall inside this range about 95% of the time. Narrower = more certain.">?</span>
+                            </div>
                             <canvas id="confidenceBandChart"
                                 style="height: 80px; width: 100%; margin-top: 10px;"></canvas>
-                            <p id="ciTextHint" style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                            <p id="ciTextHint" class="tiny-muted" style="margin-top: 8px;">
                                 Range where the true credibility score likely falls.
                             </p>
                         </div>
                     </div>
+
+                    <!-- What should I do? -->
+                    <p id="uncertaintyActionHint" class="tiny-muted" style="margin-top: 12px;">
+                        When uncertainty is high, treat this result as a warning, not proof, and cross-check with
+                        independent sources.
+                    </p>
                 </section>
             </div>
 
@@ -804,6 +896,32 @@
                 return { label: 'High Risk', class: 'high', color: '#D84343' };
             }
         };
+
+        function getUncertaintyDescriptor(uncertainty) {
+            // uncertainty ~ entropy: 0 (very sure) to 1 (very unsure)
+            if (uncertainty <= 0.25) {
+                return {
+                    level: 'low',
+                    label: 'High confidence',
+                    narrative: 'Signals strongly agree. The model is fairly sure about this judgment.',
+                    actionHint: 'You can treat this as a strong signal, but still verify critical claims.'
+                };
+            }
+            if (uncertainty <= 0.5) {
+                return {
+                    level: 'medium',
+                    label: 'Medium confidence',
+                    narrative: 'Some signals disagree. Think of this as an informed guess.',
+                    actionHint: 'Use this as a nudge, not a verdict. Cross-check with other coverage.'
+                };
+            }
+            return {
+                level: 'high',
+                label: 'Low confidence',
+                narrative: 'Signals conflict. The model is unsure about this article.',
+                actionHint: 'Do not rely on this score alone. Seek multiple independent sources.'
+            };
+        }
 
         /* --- 3. VISUALIZATIONS (Chart.js) --- */
         const Charts = {
@@ -1146,7 +1264,7 @@
                 Charts.renderGauge('credibilityGauge', data.credibilityScore);
 
                 // Safe defaults for uncertainty
-                const uncertainty = data.uncertainty || 0;
+                const uncertainty = data.uncertainty ?? 0;
 
                 // Clamp CI values
                 let [ciLower, ciUpper] = data.confidenceInterval || [
@@ -1157,9 +1275,24 @@
                 ciUpper = Math.min(1, ciUpper);
                 const ci = [ciLower, ciUpper];
 
+                // Human-friendly uncertainty descriptor
+                const uInfo = getUncertaintyDescriptor(uncertainty);
+
                 document.getElementById('uncertaintyValue').textContent = uncertainty.toFixed(2);
                 Charts.renderUncertainty('uncertaintyGauge', uncertainty);
-                Charts.renderCI('confidenceBandChart', data.credibilityScore, ci[0], ci[1]);
+                Charts.renderCI('confidenceBandChart', data.credibilityScore, ciLower, ciUpper);
+
+                // Netflix-style copy
+                const uBadge = document.getElementById('uncertaintyBadge');
+                uBadge.textContent = uInfo.label.toUpperCase();
+                uBadge.className = `uncertainty-pill ${uInfo.level}`;
+
+                document.getElementById('uncertaintyNarrative').textContent = uInfo.narrative;
+                document.getElementById('uncertaintyActionHint').textContent = uInfo.actionHint;
+
+                // Optional: make CI text concrete
+                document.getElementById('ciTextHint').textContent =
+                    `We expect the true credibility score to fall between ${Math.round(ciLower * 100)}% and ${Math.round(ciUpper * 100)}% most of the time. Shorter bars mean higher confidence.`;
 
                 // 3. Explanations Tab
                 const phrases = data.suspiciousPhrases || [];
