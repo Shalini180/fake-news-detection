@@ -7,25 +7,61 @@
     <title>FactLens | Explainable AI Credibility Dashboard</title>
     <!-- Figma Spec Fonts -->
     <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600;700&family=Crimson+Pro:wght@400&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&family=Crimson+Pro:wght@400;600&display=swap"
         rel="stylesheet">
-    <!-- Chart.js CDN for visualizations -->
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* --- 1. DESIGN SYSTEM (Tokens) --- */
         :root {
+            /* Base Colors */
             --bg-app: #F9F7F3;
             --bg-card: #FFFFFF;
             --border-subtle: #E2E2E2;
             --text-main: #1A1A1A;
             --text-muted: #6B6B6B;
+            --accent-primary: #000000;
+            /* Strong focus color */
+
+            /* Risk Colors */
             --risk-low: #3A9D56;
+            /* Trusted */
             --risk-medium: #F4A261;
+            /* Suspicious */
             --risk-high: #D84343;
+            /* Fake */
+
+            /* Spacing */
             --padding-main: 32px;
             --gap-main: 24px;
+            --radius-card: 16px;
+            --radius-btn: 999px;
         }
 
+        /* Dark Theme Tokens */
+        body.theme-dark {
+            --bg-app: #1a1a1a;
+            --bg-card: #242424;
+            --border-subtle: #333;
+            --text-main: #f0f0f0;
+            --text-muted: #a0a0a0;
+            --accent-primary: #ffffff;
+        }
+
+        /* Contextual Risk Theming */
+        body.risk-low {
+            --bg-app: #F2FAF5;
+        }
+
+        body.risk-medium {
+            --bg-app: #FFF8F0;
+        }
+
+        body.risk-high {
+            --bg-app: #FFF5F5;
+        }
+
+        /* Base Typography */
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background: var(--bg-app);
@@ -33,1296 +69,1153 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            transition: background-color 0.3s ease;
         }
 
-        /* --- 2. GLOBAL LAYOUT --- */
+        h1,
+        h2,
+        h3,
+        h4,
+        .app-title {
+            font-family: 'Playfair Display', serif;
+            margin: 0;
+        }
+
+        /* --- 2. GLOBAL COMPONENTS --- */
+
+        /* Controls (Buttons & Selects) */
+        .button-control {
+            padding: 8px 16px;
+            border-radius: var(--radius-btn);
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .button-control:hover {
+            background: var(--border-subtle);
+            border-color: var(--text-muted);
+        }
+
+        .button-control:active {
+            transform: translateY(1px);
+        }
+
+        .button-control:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Primary Action Button */
+        .btn-primary {
+            background: var(--text-main);
+            color: var(--bg-card);
+            border: 1px solid var(--text-main);
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: var(--text-muted);
+            border-color: var(--text-muted);
+            color: white;
+        }
+
+        .btn-primary.is-loading {
+            background: var(--text-muted);
+            cursor: wait;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-card);
+            padding: var(--padding-main);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+        }
+
+        .card-header-inline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        /* Inputs */
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            background: var(--bg-app);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+            margin-bottom: 16px;
+            transition: border 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-card);
+        }
+
+        textarea.form-control {
+            min-height: 180px;
+            font-family: 'Crimson Pro', serif;
+            /* Article feel */
+            font-size: 17px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- 3. LAYOUT GRID (Responsive) --- */
         .app-header {
-            height: 64px;
+            height: 72px;
             background: var(--bg-card);
             border-bottom: 1px solid var(--border-subtle);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 64px;
+            padding: 0 48px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .header-left {
+        .app-layout {
+            display: grid;
+            /* Desktop: 3 columns */
+            grid-template-columns: 340px minmax(0, 1fr) 300px;
+            gap: var(--gap-main);
+            padding: 32px 48px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Tablet (Stacked History) */
+        @media (max-width: 1100px) {
+            .app-layout {
+                grid-template-columns: 300px 1fr;
+                padding: 24px;
+            }
+
+            .panel-right {
+                grid-column: 1 / -1;
+                /* History moves to bottom full width */
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 16px;
+            }
+
+            .history-header {
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* Mobile (Single Column) */
+        @media (max-width: 800px) {
+            .app-header {
+                padding: 0 20px;
+                height: auto;
+                flex-wrap: wrap;
+                gap: 10px;
+                padding-bottom: 10px;
+            }
+
+            .app-layout {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        /* --- 4. TABS --- */
+        .tab-navigation {
             display: flex;
-            align-items: baseline;
-            gap: 15px;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 24px;
+            gap: 24px;
         }
 
-        .app-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 28px;
-            font-weight: 700;
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 12px 0;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
             color: var(--text-main);
         }
 
-        .app-subtitle {
+        .tab-btn[aria-selected="true"] {
+            color: var(--text-main);
+            border-bottom-color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        /* --- 5. VISUAL COMPONENTS --- */
+
+        /* Badges & Pills */
+        .badge-risk {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .badge-risk.low {
+            background: #E6F4EA;
+            color: var(--risk-low);
+        }
+
+        .badge-risk.medium {
+            background: #FEF3E6;
+            color: var(--risk-medium);
+        }
+
+        .badge-risk.high {
+            background: #FCE8E8;
+            color: var(--risk-high);
+        }
+
+        /* Data Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 14px;
+        }
+
+        .data-table th {
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 8px 4px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .data-table td {
+            padding: 10px 4px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        /* Highlight Chips */
+        .phrases-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .phrases-chip {
+            background: #FCE8E8;
+            color: var(--risk-high);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* History Items */
+        .history-item {
+            background: var(--bg-app);
+            border: 1px solid var(--border-subtle);
+            border-left-width: 4px;
+            /* Risk indicator line */
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .history-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .history-item.risk-low {
+            border-left-color: var(--risk-low);
+        }
+
+        .history-item.risk-medium {
+            border-left-color: var(--risk-medium);
+        }
+
+        .history-item.risk-high {
+            border-left-color: var(--risk-high);
+        }
+
+        .history-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .history-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12px;
             color: var(--text-muted);
         }
 
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        /* Layout Grid */
-        .app-layout {
+        /* Layout Utilities */
+        .grid-2 {
             display: grid;
-            grid-template-columns: 320px minmax(0, 1fr) 320px;
-            gap: var(--gap-main);
-            padding: 24px 64px 32px;
-            max-width: 1440px;
-            margin: 0 auto;
-            /* Center layout */
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
         }
 
-        /* General Card Styles */
-        .card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: var(--padding-main);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-        }
-
-        .card-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 4px;
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
         }
 
         .text-muted {
             color: var(--text-muted);
         }
 
-        .tiny-muted {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        /* --- 3. LEFT QUERY PANEL --- */
-        .card-analyzer {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            height: fit-content;
-        }
-
-        .card-analyzer input,
-        .card-analyzer textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .card-analyzer textarea {
-            min-height: 150px;
-            font-family: 'Crimson Pro', 'Georgia', serif;
-            font-size: 17px;
-            line-height: 1.6;
-        }
-
-        #btnAnalyze {
-            background: var(--risk-low);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        #btnAnalyze:disabled,
-        #btnAnalyze.is-loading {
-            background: var(--text-muted);
-            cursor: wait;
-        }
-
-        /* --- 4. CENTER PANEL (TABS) --- */
-        .tab-navigation {
-            display: flex;
-            border-bottom: 2px solid var(--border-subtle);
-            margin-bottom: 24px;
-            padding-top: 5px;
-        }
-
-        .tab-btn {
-            background: none;
-            border: none;
-            padding: 10px 15px;
-            font-size: 16px;
-            font-weight: 400;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: border-bottom 0.2s ease-in-out;
-            margin-bottom: -2px;
-            /* Pulls button border over divider */
-        }
-
-        .tab-btn.active {
-            border-bottom: 3px solid var(--text-main);
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        .tab-content {
-            min-height: 600px;
-        }
-
-        /* --- 5. OVERVIEW TAB STYLING --- */
-        .card-overview-top {
-            margin-bottom: var(--gap-main);
-        }
-
-        .card-row {
-            display: flex;
-            gap: 32px;
-        }
-
-        .card-col {
-            flex: 1;
-        }
-
-        .gauge-meta {
-            text-align: center;
-            margin-top: 15px;
-        }
-
-        #gaugeScore {
-            font-size: 36px;
-            font-weight: 700;
-            display: block;
-        }
-
-        #gaugeLabel {
-            display: block;
-            font-size: 16px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-
-        /* Risk Badge Styling */
-        .badge-risk {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge-risk.low {
-            background: rgba(58, 157, 86, 0.1);
-            color: var(--risk-low);
-        }
-
-        .badge-risk.medium {
-            background: rgba(244, 162, 97, 0.1);
-            color: var(--risk-medium);
-        }
-
-        .badge-risk.high {
-            background: rgba(216, 67, 67, 0.1);
-            color: var(--risk-high);
-        }
-
-        /* Uncertainty Grid */
-        .uncertainty-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 20px;
-            padding-top: 15px;
-        }
-
-        .uncertainty-left {
-            text-align: center;
-        }
-
-        #uncertaintySummary {
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        /* Key Reasons Styling */
-        .list-reasons {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .list-reasons li {
-            background: var(--bg-app);
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid var(--risk-medium);
-            font-size: 14px;
-        }
-
-        /* --- 6. EXPLANATIONS TAB --- */
-        .explanations-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 24px;
-        }
-
-        .card-attention {
-            grid-column: span 2;
-        }
-
-        .attention-container {
-            font-family: 'Crimson Pro', serif;
+        .text-lg {
             font-size: 18px;
-            line-height: 1.8;
-        }
-
-        .attention-token {
-            padding: 2px 4px;
-            border-radius: 4px;
-            /* Heatmap color injection via JS based on weight */
-        }
-
-        .phrases-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .phrases-grid span {
-            background: rgba(216, 67, 67, 0.1);
-            color: var(--risk-high);
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-size: 13px;
             font-weight: 600;
         }
 
-        /* --- 7. CLAIMS TAB --- */
-        .claims-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+        .w-full {
+            width: 100%;
         }
 
-        .claims-layout {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 24px;
+        /* Heatmap styling */
+        .attention-token {
+            padding: 0 2px;
+            border-radius: 3px;
+            cursor: help;
         }
 
-        .claims-list div {
-            border-bottom: 1px solid var(--border-subtle);
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
-
-        .claims-graph {
-            height: 400px;
-            /* Placeholder size for graph */
-            background: var(--bg-app);
-            border-radius: 8px;
-            border: 1px dashed var(--border-subtle);
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* --- 8. TEMPORAL TAB --- */
-        .temporal-grid {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 24px;
-        }
-
-        /* --- 9. RIGHT HISTORY PANEL --- */
-        .panel-right {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 24px;
-            height: fit-content;
-        }
-
-        .history-item {
-            background: var(--bg-app);
-            border: 1px solid var(--border-subtle);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 13px;
-        }
-
-        .history-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .history-item.selected-for-comp {
-            border: 2px solid var(--risk-medium);
-        }
-
-        #btnClearHistory {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 13px;
-            text-decoration: underline;
-            padding: 0;
-            margin-top: 10px;
-        }
-
-        /* Micro Interactions */
-        .toast {
+        /* Toast */
+        #toastContainer {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--text-main);
+            bottom: 30px;
+            right: 30px;
+            background: #1A1A1A;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
-            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(100px);
             opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease-out;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999;
+            font-weight: 500;
         }
 
-        .toast.show {
+        #toastContainer.show {
+            transform: translateY(0);
             opacity: 1;
-            visibility: visible;
         }
     </style>
 </head>
 
 <body>
 
-    <div id="toastContainer" class="toast"></div>
+    <!-- Toast Notification -->
+    <div id="toastContainer"></div>
 
+    <!-- Header -->
     <header class="app-header">
         <div class="header-left">
-            <div class="app-title">📰 FactLens</div>
-            <div class="app-subtitle">AI-Powered Misinformation Research</div>
+            <div style="font-size: 24px;">📰</div>
+            <div>
+                <div class="app-title" style="font-size: 22px;">FactLens</div>
+                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">AI Research Lab</div>
+            </div>
         </div>
         <div class="header-right">
-            <button id="btnToggleTheme" class="button-control">🌓 Theme</button>
+            <button id="btnToggleTheme" class="button-control" aria-label="Toggle Dark Mode">
+                🌓 Theme
+            </button>
+            <div style="height: 24px; width: 1px; background: var(--border-subtle); margin: 0 10px;"></div>
             <select id="demoSelector" class="button-control">
-                <option value="">Select Demo Scenario</option>
-                <option value="highRiskFake">🚨 Sensational Fake News</option>
-                <option value="lowRiskCredible">✅ Credible News Report</option>
-                <option value="mediumRiskMixed">⚠️ Mixed Signals Article</option>
+                <option value="">📋 Load Demo...</option>
+                <option value="highRiskFake">🚨 Fake News (High Risk)</option>
+                <option value="lowRiskCredible">✅ Credible (Low Risk)</option>
+                <option value="mediumRiskMixed">⚠️ Mixed Signals</option>
             </select>
-            <button id="btnLoadDemo" class="button-control">🎬 Load</button>
             <button id="btnExportSession" class="button-control">📥 Export</button>
         </div>
     </header>
 
+    <!-- Main Layout -->
     <div class="app-layout">
 
-        <!-- LEFT PANEL: Query Panel -->
+        <!-- Left Panel: Query -->
         <aside class="panel-left">
-            <div class="card card-analyzer">
+            <div class="card">
                 <div class="card-header">
-                    <h2 class="app-title">📝 Article Analyzer</h2>
-                    <p class="text-muted">Paste content or load a demo to analyze.</p>
+                    <h2 style="font-size: 18px;">Article Analyzer</h2>
+                    <p class="text-muted" style="font-size: 13px; margin-top: 4px;">Paste text or URL to detect
+                        misinformation patterns.</p>
                 </div>
 
-                <label for="articleTitle">Title (optional)</label>
-                <input type="text" id="articleTitle"
-                    placeholder="e.g., BREAKING: SHOCKING Discovery That Changes EVERYTHING!!!">
+                <form id="analysisForm" onsubmit="event.preventDefault();">
+                    <label for="articleTitle">Headline (Optional)</label>
+                    <input type="text" id="articleTitle" class="form-control" placeholder="e.g. SHOCKING Discovery...">
 
-                <label for="articleSource">Source URL (optional)</label>
-                <input type="text" id="articleSource" placeholder="e.g., https://clickbait.net/news">
+                    <label for="articleSource">Source URL (Optional)</label>
+                    <input type="url" id="articleSource" class="form-control" placeholder="https://example.com">
 
-                <label for="articleContent">Article Content</label>
-                <textarea id="articleContent" placeholder="Paste your news text here..."></textarea>
+                    <label for="articleContent">Full Text</label>
+                    <textarea id="articleContent" class="form-control"
+                        placeholder="Paste the full article content here for analysis..."></textarea>
 
-                <button id="btnAnalyze" disabled>🚀 Analyze Article</button>
+                    <button type="button" id="btnAnalyze" class="button-control btn-primary w-full"
+                        style="justify-content: center; padding: 14px;">
+                        🚀 Run Analysis
+                    </button>
+                </form>
             </div>
         </aside>
 
-        <!-- CENTER PANEL: Dashboard Content -->
+        <!-- Center Panel: Results -->
         <main class="panel-center">
-            <nav class="tab-navigation">
-                <button class="tab-btn active" data-tab="overviewTabContent">Overview</button>
-                <button class="tab-btn" data-tab="explanationsTabContent">Explanations</button>
-                <button class="tab-btn" data-tab="claimsTabContent">Claims & Evidence</button>
-                <button class="tab-btn" data-tab="temporalTabContent">Temporal</button>
-                <button class="tab-btn" data-tab="systemTabContent">System Metrics</button>
-            </nav>
 
-            <!-- 4. Overview Tab Content -->
-            <div id="overviewTabContent" class="tab-content">
-                <section class="card card-overview-top">
-                    <div class="card-row">
-                        <!-- Credibility Core (Card 1 Content) -->
-                        <div class="card-col" style="text-align: center;">
-                            <h3>🔍 Credibility Overview</h3>
-                            <canvas id="credibilityGauge" style="max-height: 180px; margin: 0 auto;"></canvas>
-                            <div class="gauge-meta">
-                                <span id="gaugeScore" class="app-title" style="font-size: 32px;">0%</span>
-                                <span id="gaugeLabel" class="text-muted">Awaiting Analysis</span>
-                                <span id="riskBadge" class="badge-risk">LOW RISK</span>
+            <!-- Tabs -->
+            <div role="tablist" class="tab-navigation">
+                <button id="tab-overview" class="tab-btn" role="tab" aria-selected="true"
+                    aria-controls="panel-overview">Overview</button>
+                <button id="tab-explanations" class="tab-btn" role="tab" aria-selected="false"
+                    aria-controls="panel-explanations">Explanations</button>
+                <button id="tab-claims" class="tab-btn" role="tab" aria-selected="false"
+                    aria-controls="panel-claims">Claims</button>
+                <button id="tab-temporal" class="tab-btn" role="tab" aria-selected="false"
+                    aria-controls="panel-temporal">Trends</button>
+                <button id="tab-system" class="tab-btn" role="tab" aria-selected="false"
+                    aria-controls="panel-system">System</button>
+            </div>
+
+            <!-- 1. Overview Panel -->
+            <div id="panel-overview" role="tabpanel" class="tab-content">
+                <section class="card" style="margin-bottom: 24px;">
+                    <div class="grid-2" style="align-items: center;">
+                        <!-- Credibility Gauge -->
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="height: 160px; position: relative;">
+                                <canvas id="credibilityGauge"></canvas>
+                                <div style="position: absolute; bottom: 0; left: 0; right: 0;">
+                                    <span id="gaugeScore"
+                                        style="font-family: 'Playfair Display'; font-size: 48px; font-weight: 700;">--%</span>
+                                </div>
                             </div>
+                            <div id="gaugeLabel" class="text-muted" style="margin-top: 10px; font-weight: 500;">Ready to
+                                Analyze</div>
+                            <div id="riskBadge" class="badge-risk" style="margin-top: 8px; display: none;"></div>
                         </div>
 
-                        <!-- Key Reasons (Card 2 Content) -->
-                        <div class="card-col">
-                            <h3>🧠 Key Reasons</h3>
-                            <ul id="keyReasonsList" class="list-reasons">
-                                <li>Lacks attribution to credible, verifiable sources</li>
-                                <li>Stylistic patterns suggest emotional exaggeration</li>
-                                <li>Source domain has no established history</li>
+                        <!-- Key Reasons -->
+                        <div style="border-left: 1px solid var(--border-subtle); padding-left: 24px;">
+                            <h3>🧠 Key Indicators</h3>
+                            <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">Top factors influencing
+                                this score:</p>
+                            <ul id="keyReasonsList" style="padding-left: 0; list-style: none;">
+                                <li class="text-muted" style="font-size: 14px; font-style: italic;">Analysis pending...
+                                </li>
                             </ul>
                         </div>
                     </div>
                 </section>
 
-                <!-- Uncertainty Card (Card 3 Content) -->
-                <div class="card card-overview-uncertainty">
+                <!-- Uncertainty Card -->
+                <section class="card">
                     <div class="card-header-inline">
-                        <h3 class="app-title" style="font-size: 20px;">📉 Uncertainty & Confidence</h3>
+                        <h3>📉 Uncertainty Lab</h3>
+                        <span class="text-muted" style="font-size: 12px;">Model Confidence Metrics</span>
                     </div>
-                    <div class="uncertainty-grid">
-                        <div class="uncertainty-left">
-                            <canvas id="uncertaintyGauge" style="max-height: 120px; margin: 0 auto;"></canvas>
-                            <p id="uncertaintySummary" class="text-muted">Model Entropy: Low (0.12)</p>
+                    <div class="grid-2">
+                        <div>
+                            <label style="text-align: center;">Entropy (Confusion)</label>
+                            <div style="height: 100px; position: relative;">
+                                <canvas id="uncertaintyGauge"></canvas>
+                                <div style="position: absolute; bottom: 10px; width: 100%; text-align: center; font-weight: 600; font-size: 18px;"
+                                    id="uncertaintyValue">--</div>
+                            </div>
                         </div>
-                        <div class="uncertainty-right">
-                            <h4 style="margin-bottom: 5px;">95% Confidence Interval (CI)</h4>
-                            <canvas id="confidenceBandChart" style="max-height: 120px;"></canvas>
-                            <p id="ciTextHint" class="tiny-muted">The model is 95% confident the true score is within
-                                this band.</p>
+                        <div>
+                            <label>95% Confidence Interval</label>
+                            <canvas id="confidenceBandChart"
+                                style="height: 80px; width: 100%; margin-top: 10px;"></canvas>
+                            <p id="ciTextHint" style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                                Range where the true credibility score likely falls.
+                            </p>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
-            <!-- Explanations Tab Content -->
-            <div id="explanationsTabContent" class="tab-content" style="display: none;">
-                <div class="explanations-grid">
-                    <section class="card card-attention">
-                        <h3>🧠 Attention Heatmap (Linguistic Triggers)</h3>
-                        <div id="attentionHeatmap" class="attention-container article-body">
-                            <p>Paste an article and analyze to see which words most influenced the RoBERTa model's
-                                decision. Highlighting intensity correlates to weight.</p>
+            <!-- 2. Explanations Panel -->
+            <div id="panel-explanations" role="tabpanel" class="tab-content" hidden>
+                <div class="grid-2" style="grid-template-columns: 2fr 1fr;">
+
+                    <!-- Attention Heatmap -->
+                    <section class="card" style="grid-column: span 2;">
+                        <h3>🧠 Attention Heatmap</h3>
+                        <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">
+                            Words highlighted by intensity influenced the model's decision.
+                        </p>
+                        <div id="attentionHeatmap"
+                            style="font-family: 'Crimson Pro', serif; font-size: 18px; line-height: 1.8; padding: 16px; background: var(--bg-app); border-radius: 8px;">
+                            No content analyzed yet.
                         </div>
                     </section>
 
-                    <section class="card card-features">
-                        <h3>📊 Feature Importance</h3>
-                        <canvas id="featureChart" style="max-height: 250px;"></canvas>
+                    <!-- Feature Importance -->
+                    <section class="card">
+                        <h3>📊 Features</h3>
+                        <div style="height: 200px;">
+                            <canvas id="featureChart"></canvas>
+                        </div>
                     </section>
 
-                    <section class="card card-breakdown">
-                        <h3>📐 Uncertainty Breakdown</h3>
+                    <!-- Suspicious Phrases -->
+                    <section class="card">
+                        <h3>🚩 Flags</h3>
+                        <div id="suspiciousPhrases" class="phrases-grid" style="margin-top: 16px;">
+                            <span class="text-muted" style="font-size: 13px;">No phrases flagged.</span>
+                        </div>
+
+                        <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px;">Breakdown</h4>
                         <table id="uncertaintyBreakdown" class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Metric</th>
-                                    <th>Value</th>
-                                </tr>
-                            </thead>
                             <tbody>
                                 <tr>
-                                    <td>Entropy (Uncertainty)</td>
-                                    <td>0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Variance</td>
-                                    <td>0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>MC Samples Used</td>
-                                    <td>100</td>
+                                    <td>Metric</td>
+                                    <td>Value</td>
                                 </tr>
                             </tbody>
                         </table>
                     </section>
-
-                    <section class="card card-phrases">
-                        <h3>🚩 Suspicious Phrases</h3>
-                        <div id="suspiciousPhrases" class="phrases-grid">
-                            <span class="phrases-chip">Sensational Claim</span>
-                            <span class="phrases-chip">Emotional Exaggeration</span>
-                            <span class="phrases-chip">Unattributed Quote</span>
-                        </div>
-                    </section>
                 </div>
             </div>
 
-            <!-- Claims & Evidence Tab Content -->
-            <div id="claimsTabContent" class="tab-content" style="display: none;">
-                <section class="card card-claims-main">
-                    <div class="claims-header-row">
-                        <h3 class="app-title" style="font-size: 20px;">🧾 Claims & Evidence</h3>
-                        <div class="claim-filters">
-                            <button class="button-control active">All</button>
+            <!-- 3. Claims Panel -->
+            <div id="panel-claims" role="tabpanel" class="tab-content" hidden>
+                <section class="card">
+                    <div class="card-header-inline">
+                        <h3>🧾 Extracted Claims</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="button-control">All</button>
                             <button class="button-control">Verified</button>
-                            <button class="button-control">Unverified</button>
-                            <button class="button-control">Disputed</button>
                         </div>
                     </div>
-                    <div class="claims-layout">
-                        <div class="claims-list" id="claimsList">
-                            <h4>Extracted Claims</h4>
-                            <!-- Claims will be rendered here -->
+                    <div class="grid-2">
+                        <div id="claimsList" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                            <p class="text-muted">No claims extracted.</p>
                         </div>
-                        <div class="claims-graph">
-                            <h4>Knowledge Graph Map (Relationships)</h4>
-                            <div id="knowledgeGraph">
-                                <!-- Knowledge Graph SVG visualization goes here -->
-                                <p class="text-muted">Node-link diagram showing how claims link to evidence and sources.
-                                </p>
+                        <div
+                            style="background: var(--bg-app); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-subtle);">
+                            <div id="knowledgeGraph" style="text-align: center; padding: 20px;">
+                                <p class="text-muted">Knowledge Graph Visualization</p>
+                                <small>(Nodes appear here after analysis)</small>
                             </div>
                         </div>
                     </div>
                 </section>
             </div>
 
-            <!-- Temporal Tab Content -->
-            <div id="temporalTabContent" class="tab-content" style="display: none;">
-                <div class="temporal-grid">
+            <!-- 4. Temporal Panel -->
+            <div id="panel-temporal" role="tabpanel" class="tab-content" hidden>
+                <div class="grid-2">
                     <section class="card">
-                        <h3>⏱ Credibility Trends Over Time</h3>
-                        <canvas id="timeSeriesChart" style="max-height: 250px;"></canvas>
+                        <h3>⏱ Trends & Uncertainty</h3>
+                        <div style="height: 250px;">
+                            <canvas id="timeSeriesChart"></canvas>
+                        </div>
                     </section>
-
                     <section class="card">
-                        <h3>📊 Score Distribution</h3>
-                        <canvas id="distributionChart" style="max-height: 250px;"></canvas>
-                    </section>
-
-                    <section class="card" style="grid-column: span 2;">
-                        <h3>📈 Comparison Modal</h3>
-                        <p class="text-muted">Select two items from the History Panel to view a side-by-side comparison
-                            of their scores, features, and key reasons.</p>
-                        <!-- Comparison modal content placeholder -->
-                        <div id="comparisonModal" class="card-row" style="gap: 20px; padding-top: 15px;">
-                            <div id="comparisonGridA" class="card-col">No Analysis Selected (A)</div>
-                            <div id="comparisonGridB" class="card-col">No Analysis Selected (B)</div>
+                        <h3>📊 Distribution</h3>
+                        <div style="height: 250px;">
+                            <canvas id="distributionChart"></canvas>
                         </div>
                     </section>
                 </div>
+                <section class="card" style="margin-top: 24px;">
+                    <h3>📈 Comparative Analysis</h3>
+                    <div id="comparisonGrid" class="grid-2" style="margin-top: 16px;">
+                        <div class="text-muted" style="font-style: italic;">Select two items from history to compare.
+                        </div>
+                        <div></div>
+                    </div>
+                </section>
             </div>
 
-            <!-- System Metrics Tab Content -->
-            <div id="systemTabContent" class="tab-content" style="display: none;">
-                <div class="card">
-                    <h3 class="app-title" style="font-size: 20px;">📈 System & Session Statistics</h3>
-                    <div class="system-stats-grid" id="sessionStats">
-                        <!-- Stats tiles will render here -->
+            <!-- 5. System Panel -->
+            <div id="panel-system" role="tabpanel" class="tab-content" hidden>
+                <div class="system-stats-grid grid-3">
+                    <div class="card" style="text-align: center;">
+                        <div class="text-muted" style="font-size: 12px;">TOTAL ANALYSES</div>
+                        <div class="text-lg" id="statTotal">0</div>
+                    </div>
+                    <div class="card" style="text-align: center;">
+                        <div class="text-muted" style="font-size: 12px;">AVG CONFIDENCE</div>
+                        <div class="text-lg" id="statAvgConf">--</div>
                     </div>
                 </div>
-                <div class="card card-limitations" style="margin-top: 24px;">
-                    <h4>⚠️ Model Limitations & Disclaimers</h4>
-                    <ul>
-                        <li>Optimized for English text (200+ words recommended).</li>
-                        <li>May not detect sophisticated disinformation campaigns.</li>
-                        <li>Domain credibility database is not exhaustive/real-time.</li>
-                        <li>Attention weights are interpretive, not definitive proof.</li>
+                <div class="card card-limitations" style="margin-top: 24px; border-left: 4px solid var(--risk-medium);">
+                    <h4>⚠️ Model Limitations</h4>
+                    <ul style="font-size: 14px; line-height: 1.6; color: var(--text-main); margin-top: 12px;">
+                        <li>Optimized for English news articles (200+ words).</li>
+                        <li>Does not perform real-time web scraping for breaking news.</li>
+                        <li>Attention weights are interpretive aids, not causal proof.</li>
                     </ul>
                 </div>
             </div>
+
         </main>
 
-        <!-- RIGHT PANEL: History Panel -->
+        <!-- Right Panel: History -->
         <aside class="panel-right">
-            <div class="card-header" style="padding: 0; margin-bottom: 15px;">
-                <h2 class="app-title" style="font-size: 20px;">🗃️ Research Timeline</h2>
-                <p class="text-muted">Last 50 analyses. Click to reload. Select 2 for comparison.</p>
+            <div class="history-header" style="margin-bottom: 20px;">
+                <h3>🗃️ History</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <span class="text-muted" style="font-size: 12px;">Last 50 items</span>
+                    <button id="btnClearHistory"
+                        style="background: none; border: none; color: var(--text-muted); font-size: 12px; text-decoration: underline; cursor: pointer;">Clear</button>
+                </div>
             </div>
 
-            <div id="historyList">
-                <!-- History items will be injected here -->
+            <div id="historyList" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- History items -->
             </div>
-            <button id="btnClearHistory">🗑️ Clear History</button>
         </aside>
 
     </div>
 
     <script>
-        // Global Constants
-        const API_BASE_URL = 'https://fake-news-roberta-service.onrender.com/api/v1'; // FINAL PRODUCTION API URL
+        /* --- 1. CONFIGURATION --- */
+        const CONFIG = {
+            // Using the updated production API
+            API_BASE: 'https://fake-news-roberta-service.onrender.com/api/v1',
+            MAX_HISTORY: 50
+        };
 
-        // --- Core Model and Session Management ---
-
+        /* --- 2. SESSION MANAGER --- */
         const SessionManager = {
-            STORAGE_KEY: 'factlens_session_history',
-            load: () => JSON.parse(localStorage.getItem(SessionManager.STORAGE_KEY) || '[]'),
-            save: (history) => localStorage.setItem(SessionManager.STORAGE_KEY, JSON.stringify(history)),
-            addAnalysis: (result) => {
+            key: 'factlens_history',
+            load: () => JSON.parse(localStorage.getItem(SessionManager.key) || '[]'),
+            save: (data) => localStorage.setItem(SessionManager.key, JSON.stringify(data)),
+            add: (result) => {
                 const history = SessionManager.load();
                 history.unshift({
-                    id: result.articleId,
-                    title: result.title,
-                    score: result.credibilityScore,
-                    risk: result.classification,
-                    timestamp: Date.now(),
-                    data: result
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    ...result
                 });
-                SessionManager.save(history.slice(0, 50)); // Keep only the latest 50
+                SessionManager.save(history.slice(0, CONFIG.MAX_HISTORY));
             },
             clear: () => {
-                localStorage.removeItem(SessionManager.STORAGE_KEY);
-                loadSessionHistory();
+                localStorage.removeItem(SessionManager.key);
+                UI.renderHistory();
+                UI.toast('History cleared.');
             },
-            getRiskLevel: (score) => {
-                if (score <= 0.3) return { level: 'Trusted', class: 'low' };
-                if (score <= 0.6) return { level: 'Suspicious', class: 'medium' };
-                return { level: 'Likely Fake', class: 'high' };
-            },
-            // Retrieves data formatted for the temporal chart (score and uncertainty for each point)
-            getTemporalData: () => {
-                const history = SessionManager.load().reverse(); // Show oldest first
-                return history.map(item => ({
-                    date: new Date(item.timestamp).toLocaleTimeString(),
-                    score: item.score * 100, // Convert to percentage
-                    uncertainty: item.data.uncertainty || (1 - Math.abs(item.score - 0.5) * 2) * 100 // Mock uncertainty if missing
-                }));
+            getRisk: (score) => {
+                // CORRECTED LOGIC: 
+                // 0.0 - 0.3: Trusted (Green)
+                // 0.3 - 0.6: Suspicious (Orange)
+                // 0.6 - 1.0: Fake (Red)
+                if (score <= 0.3) return { label: 'Trusted', class: 'low', color: '#3A9D56' };
+                if (score <= 0.6) return { label: 'Suspicious', class: 'medium', color: '#F4A261' };
+                return { label: 'High Risk', class: 'high', color: '#D84343' };
             }
         };
 
-        // --- API Configuration (Abstracted from app.js) ---
+        /* --- 3. VISUALIZATIONS (Chart.js) --- */
+        const Charts = {
+            instances: {},
 
-        window.api = {
-            analyze: async ({ title, content, source }) => {
-                const response = await fetch(`${API_BASE_URL}/analyze`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, content, source })
-                });
+            getColor: (varName) => getComputedStyle(document.body).getPropertyValue(varName).trim(),
 
-                if (!response.ok) {
-                    // Return a structure matching the API expected format, but with a flag
-                    throw new Error(`API returned status ${response.status}`);
-                }
-
-                // Mocking the uncertainty data expected by the newly activated UI features
-                const result = await response.json();
-                const score = result.credibilityScore || 0.5;
-
-                return {
-                    ...result,
-                    articleId: result.articleId || `api-${Date.now()}`,
-                    title: title,
-                    uncertainty: 1 - Math.abs(score - 0.5) * 2, // Mocked entropy/uncertainty
-                    confidenceInterval: [Math.max(0, score - 0.05), Math.min(1, score + 0.05)], // Mocked CI
-                    keyReasons: result.keyReasons || ['Linguistic analysis complete.', 'Domain verification pending.'],
-                    featureScores: result.featureScores || { content_analysis: score, domain_credibility: 0.9, claims_verification: 0.3, cross_reference: 0.5 },
-                    extractedClaims: result.extractedClaims || [],
-                    attentionTokens: result.attentionTokens || [{ word: 'SHOCKING', weight: 0.8 }, { word: 'Discovery', weight: 0.6 }, { word: 'Confirms', weight: 0.2 }],
-                };
-            }
-        };
-
-        // --- Chart.js Visualizations (Simplified Public API from visualizations.js) ---
-        const Visualizations = {
-            charts: {}, // Store active chart instances
-
-            destroyChart: (canvasId) => {
-                if (Visualizations.charts[canvasId]) {
-                    Visualizations.charts[canvasId].destroy();
-                    delete Visualizations.charts[canvasId];
+            destroy: (id) => {
+                if (Charts.instances[id]) {
+                    Charts.instances[id].destroy();
+                    delete Charts.instances[id];
                 }
             },
 
-            createCredibilityGauge: (canvasId, score) => {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                Visualizations.destroyChart(canvasId);
-                const data = {
-                    datasets: [{
-                        data: [score * 100, 100 - (score * 100)],
-                        backgroundColor: [score <= 0.6 ? varToHex('--risk-high') : varToHex('--risk-low'), varToHex('--border-subtle')],
-                        borderWidth: 0,
-                        circumference: 180,
-                        rotation: 270,
-                        cutout: '70%',
-                        needleValue: score * 100,
-                    }]
-                };
+            renderGauge: (id, score) => {
+                Charts.destroy(id);
+                const ctx = document.getElementById(id).getContext('2d');
+                const risk = SessionManager.getRisk(score);
 
-                Visualizations.charts[canvasId] = new Chart(ctx, {
-                    type: 'doughnut', data: data,
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false }, tooltip: { enabled: false } }
-                    }
-                });
-            },
-
-            createUncertaintyGauge: (canvasId, uncertainty) => {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                Visualizations.destroyChart(canvasId);
-                const color = uncertainty > 0.5 ? varToHex('--risk-medium') : varToHex('--risk-low');
-
-                Visualizations.charts[canvasId] = new Chart(ctx, {
+                Charts.instances[id] = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         datasets: [{
-                            data: [uncertainty * 100, 100 - (uncertainty * 100)],
-                            backgroundColor: [color, varToHex('--border-subtle')],
+                            data: [score * 100, 100 - (score * 100)],
+                            backgroundColor: [risk.color, '#E2E2E2'],
                             borderWidth: 0,
+                            circumference: 180,
+                            rotation: 270,
                         }]
                     },
                     options: {
-                        responsive: true, maintainAspectRatio: false,
-                        cutout: '80%',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { enabled: false }
-                        }
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '75%',
+                        plugins: { tooltip: { enabled: false }, legend: { display: false } }
                     }
                 });
             },
 
-            createConfidenceBandChart: (canvasId, score, ciLower, ciUpper) => {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                Visualizations.destroyChart(canvasId);
-                const lowerPercent = ciLower * 100;
-                const upperPercent = ciUpper * 100;
-                const scorePercent = score * 100;
+            renderUncertainty: (id, entropy) => {
+                Charts.destroy(id);
+                const ctx = document.getElementById(id).getContext('2d');
+                // Higher entropy = More uncertainty = Muted color
+                const color = entropy > 0.5 ? '#F4A261' : '#3A9D56';
 
-                Visualizations.charts[canvasId] = new Chart(ctx, {
-                    type: 'bar',
+                Charts.instances[id] = new Chart(ctx, {
+                    type: 'doughnut',
                     data: {
-                        labels: ['Confidence'],
                         datasets: [{
-                            label: 'CI Lower Bound',
-                            data: [lowerPercent],
-                            backgroundColor: varToHex('--text-muted'),
-                            stack: 'stack1',
-                        }, {
-                            label: 'Confidence Band',
-                            data: [upperPercent - lowerPercent],
-                            backgroundColor: 'rgba(0, 122, 255, 0.4)', // Blue shade for confidence
-                            stack: 'stack1',
-                        }, {
-                            label: 'Point Estimate',
-                            data: [scorePercent],
-                            type: 'scatter',
-                            pointRadius: 10,
-                            pointBackgroundColor: varToHex('--text-main'),
-                            showLine: false,
+                            data: [entropy * 100, 100 - (entropy * 100)],
+                            backgroundColor: [color, '#E2E2E2'],
+                            borderWidth: 0
                         }]
                     },
                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '85%',
+                        plugins: { tooltip: { enabled: false }, legend: { display: false } }
+                    }
+                });
+            },
+
+            renderCI: (id, score, lower, upper) => {
+                Charts.destroy(id);
+                const ctx = document.getElementById(id).getContext('2d');
+
+                Charts.instances[id] = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Confidence'],
+                        datasets: [
+                            {
+                                label: 'Lower',
+                                data: [lower * 100],
+                                backgroundColor: 'transparent',
+                                barThickness: 20,
+                                stack: '1'
+                            },
+                            {
+                                label: '95% Range',
+                                data: [(upper - lower) * 100],
+                                backgroundColor: 'rgba(0, 122, 255, 0.3)',
+                                barThickness: 20,
+                                borderRadius: 4,
+                                stack: '1'
+                            },
+                            {
+                                type: 'scatter',
+                                label: 'Score',
+                                data: [{ x: score * 100, y: 'Confidence' }],
+                                backgroundColor: '#000',
+                                pointRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
                         indexAxis: 'y',
-                        responsive: true, maintainAspectRatio: false,
+                        responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
-                            x: { stacked: true, min: 0, max: 100, display: false },
-                            y: { stacked: true, display: false }
+                            x: { min: 0, max: 100, display: true, grid: { drawOnChartArea: false } },
+                            y: { display: false, stacked: true }
                         },
                         plugins: { legend: { display: false } }
                     }
                 });
             },
 
-            createFeatureChart: (canvasId, featureScores) => {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                Visualizations.destroyChart(canvasId);
-                const labels = Object.keys(featureScores).map(k => k.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-                const dataValues = Object.values(featureScores).map(v => v * 100);
+            renderFeatures: (id, features) => {
+                Charts.destroy(id);
+                const ctx = document.getElementById(id).getContext('2d');
+                // Clean labels: "content_analysis" -> "Content"
+                const labels = Object.keys(features).map(k => k.split('_')[0].charAt(0).toUpperCase() + k.split('_')[0].slice(1));
+                const values = Object.values(features).map(v => v * 100);
 
-                Visualizations.charts[canvasId] = new Chart(ctx, {
+                Charts.instances[id] = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: labels,
                         datasets: [{
-                            data: dataValues,
-                            backgroundColor: (context) => {
-                                const value = context.parsed.x;
-                                if (value < 40) return varToHex('--risk-high');
-                                if (value < 70) return varToHex('--risk-medium');
-                                return varToHex('--risk-low');
-                            },
+                            data: values,
+                            backgroundColor: values.map(v => v > 60 ? '#D84343' : '#E2E2E2'),
+                            borderRadius: 4
                         }]
                     },
                     options: {
                         indexAxis: 'y',
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            x: { min: 0, max: 100 },
-                            y: { beginAtZero: true }
-                        },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { x: { min: 0, max: 100 } },
                         plugins: { legend: { display: false } }
                     }
                 });
             },
 
-            // WIRING THE FINAL FEATURE (Step 9)
-            createUncertaintyTimeSeriesChart: (canvasId, historicalPoints) => {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                Visualizations.destroyChart(canvasId);
+            renderTimeSeries: (id) => {
+                Charts.destroy(id);
+                const history = SessionManager.load().reverse(); // Oldest first
+                if (history.length < 2) return;
 
-                Visualizations.charts[canvasId] = new Chart(ctx, {
+                const ctx = document.getElementById(id).getContext('2d');
+
+                Charts.instances[id] = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: historicalPoints.map(p => p.date),
-                        datasets: [{
-                            label: 'Credibility Score (%)',
-                            data: historicalPoints.map(p => p.score),
-                            borderColor: varToHex('--risk-low'),
-                            tension: 0.1,
-                        },
-                        {
-                            label: 'Model Uncertainty (%)',
-                            data: historicalPoints.map(p => p.uncertainty),
-                            borderColor: varToHex('--text-muted'),
-                            borderDash: [5, 5],
-                            tension: 0.1,
-                            backgroundColor: 'transparent'
-                        }]
+                        labels: history.map(h => new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                        datasets: [
+                            {
+                                label: 'Credibility Score',
+                                data: history.map(h => h.credibilityScore * 100),
+                                borderColor: '#333',
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 2
+                            },
+                            {
+                                label: 'Uncertainty',
+                                data: history.map(h => (h.uncertainty || 0) * 100),
+                                borderColor: '#6B6B6B',
+                                borderDash: [5, 5],
+                                borderWidth: 1,
+                                pointRadius: 0
+                            }
+                        ]
                     },
                     options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { min: 0, max: 100, title: { display: true, text: 'Percentage' } },
-                            x: { title: { display: true, text: 'Time of Analysis' } }
-                        }
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: { y: { min: 0, max: 100 } }
                     }
                 });
-            },
+            }
         };
 
-        // Helper to convert CSS variable to HEX for Chart.js
-        function varToHex(cssVar) {
-            return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
-        }
+        /* --- 4. UI CONTROLLER --- */
+        const UI = {
+            elements: {},
 
-        // --- Main Application Logic (Restored app.js functions) ---
+            init: () => {
+                // Cache elements
+                ['articleTitle', 'articleSource', 'articleContent', 'btnAnalyze',
+                    'btnToggleTheme', 'demoSelector', 'toastContainer'].forEach(id => {
+                        UI.elements[id] = document.getElementById(id);
+                    });
 
-        // Global state
-        let activeResult = null;
-        let comparisonSelection = [];
+                // Event Listeners
+                UI.elements.btnAnalyze.addEventListener('click', App.analyze);
+                UI.elements.btnToggleTheme.addEventListener('click', UI.toggleTheme);
+                UI.elements.demoSelector.addEventListener('change', (e) => App.loadDemo(e.target.value));
+                document.getElementById('btnClearHistory').addEventListener('click', SessionManager.clear);
 
-        function getClassificationLabel(score) {
-            if (score <= 0.3) return 'Highly Credible';
-            if (score <= 0.6) return 'Suspicious / Mixed';
-            return 'Likely Misinformation';
-        }
-
-        async function analyzeArticle() {
-            const title = document.getElementById('articleTitle').value.trim();
-            const content = document.getElementById('articleContent').value.trim();
-            const source = document.getElementById('articleSource').value.trim();
-
-            if (!content) {
-                showToast('❌ Please enter article content');
-                document.getElementById('articleContent').focus();
-                return;
-            }
-
-            const btnAnalyze = document.getElementById('btnAnalyze');
-            btnAnalyze.disabled = true;
-            btnAnalyze.textContent = '⏳ Analyzing...';
-
-            try {
-                const result = await window.api.analyze({ title, content, source });
-
-                console.log('✅ API Result:', result);
-
-                // Render results
-                renderResults(result);
-
-                // Add to session
-                SessionManager.addAnalysis(result);
-
-                // Update UI
-                loadSessionHistory();
-                updateTemporalAnalytics();
-
-                showToast('✅ Analysis complete');
-
-            } catch (error) {
-                console.error('❌ API Error:', error);
-                showToast('⚠️ API unavailable - using local simulation');
-
-                // Fallback simulation
-                const simulated = simulateAnalysis(title, content, source);
-                renderResults(simulated);
-                SessionManager.addAnalysis(simulated);
-                loadSessionHistory();
-                updateTemporalAnalytics();
-
-            } finally {
-                btnAnalyze.disabled = false;
-                btnAnalyze.textContent = '🚀 Analyze Article';
-            }
-        }
-
-        function simulateAnalysis(title, content, source) {
-            const score = Math.random() * 0.6 + 0.2;
-            const riskLevel = SessionManager.getRiskLevel(score);
-
-            return {
-                articleId: `sim-${Date.now()}`,
-                title: title || 'Untitled',
-                source: source || 'Unknown',
-                credibilityScore: score,
-                classification: riskLevel.level,
-                explanation: 'Simulated analysis (backend unavailable)',
-                uncertainty: (1 - Math.abs(score - 0.5) * 2),
-                confidenceInterval: [Math.max(0, score - 0.05), Math.min(1, score + 0.05)],
-                featureScores: {
-                    content_analysis: score,
-                    domain_credibility: score * 0.9,
-                    claims_verification: score * 1.1,
-                    cross_reference: score * 0.8
-                },
-                keyReasons: ['Backend unavailable - showing simulated results', 'Linguistic features are generic.'],
-                riskLevel: riskLevel,
-                extractedClaims: [{ claim: "Simulated claim 1.", status: "VERIFIED" }, { claim: "Simulated claim 2.", status: "UNVERIFIED" }],
-                attentionTokens: [{ word: 'Simulated', weight: 0.8 }, { word: 'Data', weight: 0.6 }],
-                topWords: ['Simulated', 'Data'],
-                suspiciousPhrases: ['emotional rhetoric', 'unverified assertion']
-            };
-        }
-
-        // Main render pipeline
-        function renderResults(result) {
-            activeResult = result;
-            const score = result.credibilityScore;
-            const risk = SessionManager.getRiskLevel(score);
-
-            // Update overall theme based on score (optional)
-            document.body.className = `risk-${risk.class}`;
-
-            renderOverview(result);
-            renderExplanations(result);
-            renderClaimsAndEvidence(result);
-        }
-
-        // --- Render Functions (Mapping data to UI elements) ---
-
-        function renderOverview(result) {
-            const score = result.credibilityScore;
-            const risk = SessionManager.getRiskLevel(score);
-
-            // Credibility Core
-            document.getElementById('gaugeScore').textContent = `${Math.round(score * 100)}%`;
-            document.getElementById('gaugeLabel').textContent = getClassificationLabel(score);
-            document.getElementById('riskBadge').textContent = `${risk.level.toUpperCase()} RISK`;
-            document.getElementById('riskBadge').className = `badge-risk ${risk.class}`;
-            Visualizations.createCredibilityGauge('credibilityGauge', score);
-
-            // Key Reasons
-            const keyReasonsList = document.getElementById('keyReasonsList');
-            keyReasonsList.innerHTML = result.keyReasons.map(reason => `<li>${reason}</li>`).join('');
-
-            // Uncertainty
-            renderUncertaintyOverview(result);
-        }
-
-        function renderUncertaintyOverview(result) {
-            const uncertainty = result.uncertainty; // Assuming 0 to 1
-            const ciLower = result.confidenceInterval[0];
-            const ciUpper = result.confidenceInterval[1];
-
-            // Gauge
-            Visualizations.createUncertaintyGauge('uncertaintyGauge', uncertainty);
-            document.getElementById('uncertaintySummary').textContent = `Model Entropy: ${uncertainty.toFixed(2)}`;
-
-            // CI Band Chart
-            Visualizations.createConfidenceBandChart('confidenceBandChart', result.credibilityScore, ciLower, ciUpper);
-            document.getElementById('ciTextHint').textContent = `CI: ${Math.round(ciLower * 100)}% to ${Math.round(ciUpper * 100)}%`;
-        }
-
-        function renderExplanations(result) {
-            // Feature Importance Chart
-            Visualizations.createFeatureChart('featureChart', result.featureScores);
-
-            // Attention Heatmap
-            const content = document.getElementById('articleContent').value.trim();
-            const heatmapContainer = document.getElementById('attentionHeatmap');
-
-            let html = content;
-            result.attentionTokens.forEach(token => {
-                // Simple replacement for demo. Real implementation is more complex (tokenization)
-                const colorIntensity = Math.min(1, token.weight * 1.5);
-                const color = `rgba(255, 165, 0, ${colorIntensity})`; // Orange-to-red scale
-                const replacement = `<span class="attention-token" style="background-color: ${color};">${token.word}</span>`;
-                html = html.replace(new RegExp(token.word, 'g'), replacement);
-            });
-            heatmapContainer.innerHTML = html || 'No article content to display heatmap.';
-
-            // Suspicious Phrases
-            const phrasesContainer = document.getElementById('suspiciousPhrases');
-            phrasesContainer.innerHTML = result.suspiciousPhrases.map(phrase => `<span class="phrases-chip">${phrase}</span>`).join('');
-
-            // Uncertainty Breakdown Table (Mocked)
-            const breakdownBody = document.getElementById('uncertaintyBreakdown').querySelector('tbody');
-            breakdownBody.innerHTML = `
-            <tr><td>Entropy (Uncertainty)</td><td>${result.uncertainty.toFixed(3)}</td></tr>
-            <tr><td>Variance</td><td>${(Math.random() * 0.05).toFixed(4)}</td></tr>
-            <tr><td>95% CI Width</td><td>${(ciUpper - ciLower).toFixed(3)}</td></tr>
-        `;
-        }
-
-        function renderClaimsAndEvidence(result) {
-            const claimsList = document.getElementById('claimsList');
-            claimsList.innerHTML = result.extractedClaims.map(claim => `
-            <div>
-                <span class="badge-risk ${claim.status === 'VERIFIED' ? 'low' : 'high'}" style="font-size: 10px;">${claim.status}</span>
-                <p style="margin: 5px 0 0 0;">${claim.claim}</p>
-            </div>
-        `).join('');
-
-            // Knowledge Graph placeholder
-            document.getElementById('knowledgeGraph').innerHTML = `
-            <svg width="100%" height="300" style="border-radius: 8px;">
-                <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${varToHex('--text-muted')}">Source Network Map (Visualized Claims)</text>
-            </svg>
-        `;
-        }
-
-        function updateTemporalAnalytics() {
-            const historicalPoints = SessionManager.getTemporalData();
-
-            if (historicalPoints.length < 2) {
-                // Need at least 2 points for a time series
-                return;
-            }
-
-            // 1. Dual-Line Temporal Uncertainty Chart (The final feature wiring - Step 9)
-            Visualizations.createUncertaintyTimeSeriesChart(
-                'timeSeriesChart',
-                historicalPoints
-            );
-
-            // 2. Mock Score Distribution (To be implemented by a proper function later)
-            // Visualizations.createDistributionChart('distributionChart', historicalPoints.map(p => p.score));
-            const ctx = document.getElementById('distributionChart').getContext('2d');
-            Visualizations.destroyChart('distributionChart');
-            Visualizations.charts['distributionChart'] = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: ['0-20', '20-40', '40-60', '60-80', '80-100'], datasets: [{ label: 'Score Count', data: [1, 2, 4, 3, 1] }] },
-                options: { plugins: { legend: { display: false } } }
-            });
-        }
-
-        // --- UI/Global Handlers ---
-
-        function loadSessionHistory() {
-            const history = SessionManager.load();
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '';
-
-            history.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `history-item risk-${SessionManager.getRiskLevel(item.score).class}`;
-                div.dataset.id = item.id;
-                div.dataset.score = item.score;
-                div.innerHTML = `
-                <div style="font-weight: 600;">${item.title.substring(0, 40)}...</div>
-                <div class="tiny-muted">${new Date(item.timestamp).toLocaleString()}</div>
-                <div class="badge-risk ${SessionManager.getRiskLevel(item.score).class}" style="font-size: 10px; margin-top: 5px;">${item.risk} (${Math.round(item.score * 100)}%)</div>
-            `;
-
-                div.addEventListener('click', () => {
-                    renderResults(item.data);
-                    showToast(`Loaded analysis: ${item.title}`);
+                // Tab Logic
+                const tabs = document.querySelectorAll('[role="tab"]');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', (e) => UI.switchTab(e.target.id));
                 });
 
-                div.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    toggleComparisonSelection(item);
+                UI.renderHistory();
+            },
+
+            switchTab: (tabId) => {
+                // Deselect all
+                document.querySelectorAll('[role="tab"]').forEach(t => {
+                    t.setAttribute('aria-selected', 'false');
+                    t.classList.remove('active'); // Fallback for older CSS logic
                 });
+                document.querySelectorAll('[role="tabpanel"]').forEach(p => p.hidden = true);
 
-                historyList.appendChild(div);
-            });
-        }
+                // Select new
+                const tab = document.getElementById(tabId);
+                tab.setAttribute('aria-selected', 'true');
+                const panelId = tab.getAttribute('aria-controls');
+                document.getElementById(panelId).hidden = false;
 
-        function toggleComparisonSelection(item) {
-            const index = comparisonSelection.findIndex(c => c.id === item.id);
-            const element = document.querySelector(`.history-item[data-id="${item.id}"]`);
-
-            if (index > -1) {
-                comparisonSelection.splice(index, 1);
-                element.classList.remove('selected-for-comp');
-            } else if (comparisonSelection.length < 2) {
-                comparisonSelection.push(item);
-                element.classList.add('selected-for-comp');
-            } else {
-                showToast('⚠️ Maximum two items selected for comparison.');
-                return;
-            }
-
-            renderComparisonModal();
-        }
-
-        function renderComparisonModal() {
-            const gridA = document.getElementById('comparisonGridA');
-            const gridB = document.getElementById('comparisonGridB');
-
-            const renderColumn = (item, id) => {
-                if (!item) {
-                    document.getElementById(id).innerHTML = `No Analysis Selected (${id.slice(-1)})`;
-                    return;
+                // Refresh charts if Temporal tab (canvas sizing bugfix)
+                if (panelId === 'panel-temporal') {
+                    Charts.renderTimeSeries('timeSeriesChart');
                 }
-                const data = item.data;
-                const score = Math.round(data.credibilityScore * 100);
-                const features = Object.entries(data.featureScores || {}).map(([key, val]) => `<li>${key.replace('_', ' ')}: ${Math.round(val * 100)}%</li>`).join('');
+            },
 
-                document.getElementById(id).innerHTML = `
-                <h4 style="font-weight: 600; margin-bottom: 5px;">${item.title.substring(0, 50)}...</h4>
-                <p class="tiny-muted">${new Date(item.timestamp).toLocaleDateString()}</p>
-                <div class="badge-risk ${SessionManager.getRiskLevel(data.credibilityScore).class}" style="margin-top: 10px;">Score: ${score}%</div>
-                <h5 style="margin-top: 15px; margin-bottom: 5px;">Features:</h5>
-                <ul style="list-style: none; padding: 0; font-size: 13px;">${features}</ul>
-            `;
-            };
+            toggleTheme: () => {
+                document.body.classList.toggle('theme-dark');
+                const isDark = document.body.classList.contains('theme-dark');
+                UI.elements.btnToggleTheme.textContent = isDark ? '☀️ Light' : '🌓 Theme';
+            },
 
-            renderColumn(comparisonSelection[0], 'comparisonGridA');
-            renderColumn(comparisonSelection[1], 'comparisonGridB');
-        }
-
-        function loadDemoScenario() {
-            const selector = document.getElementById('demoSelector');
-            const scenarioKey = selector.value;
-            if (!scenarioKey) return;
-
-            const demoData = {
-                highRiskFake: {
-                    title: 'SHOCKING Report: Alien Artifacts Found in Remote Facility!',
-                    content: 'Exclusive breaking news confirms that a secretive government facility has uncovered shocking artifacts that change human history forever. The source, who wishes to remain anonymous, guarantees this information is 100% accurate. The government is trying to cover it up, but a brave whistleblower revealed everything. This is a SHOCKING discovery!',
-                    source: 'www.conspiracy-central.net',
-                    score: 0.85, uncertainty: 0.2, ci: [0.80, 0.90],
-                    keys: ['Sensational language detected', 'Anonymous, unverified source', 'Exaggerated certainty.'],
-                    features: { content_analysis: 0.95, domain_credibility: 0.1, claims_verification: 0.05, cross_reference: 0.01 },
-                    tokens: [{ word: 'SHOCKING', weight: 0.9 }, { word: 'forever', weight: 0.75 }, { word: 'Exclusive', weight: 0.6 }],
-                    phrases: ['100% accurate', 'wishes to remain anonymous', 'cover it up']
-                },
-                lowRiskCredible: {
-                    title: 'New Study Confirms Climate Change Model Projections for 2050',
-                    content: 'According to a recent peer-reviewed report published by the Journal of Climate Science, data confirms that current global warming trends align precisely with model projections established in 2010. Lead scientist Dr. Jane Smith stated, "The correlation between historical data and our predictive models gives us high confidence in these findings." The report is available for public review.',
-                    source: 'www.journals.org/climate-science',
-                    score: 0.15, uncertainty: 0.1, ci: [0.10, 0.20],
-                    keys: ['Peer-reviewed source verified', 'Low emotional language', 'Attribution to named experts.'],
-                    features: { content_analysis: 0.05, domain_credibility: 0.95, claims_verification: 0.88, cross_reference: 0.99 },
-                    tokens: [{ word: 'confirms', weight: 0.1 }, { word: 'peer-reviewed', weight: 0.05 }, { word: 'confidence', weight: 0.2 }],
-                    phrases: ['Journal of Climate Science', 'high confidence in these findings']
-                },
-                mediumRiskMixed: {
-                    title: 'Political Leader Comments on New Policy: Promises Massive Economic Boom',
-                    content: 'A controversial new policy was introduced by Speaker Doe yesterday, who promised it would bring a "massive economic boom" to the region. While some economists agree the policy has potential, experts from the opposing party warn it could lead to severe recessionary pressures. The details of the policy remain complex and polarizing.',
-                    source: 'www.local-news-blog.com',
-                    score: 0.55, uncertainty: 0.5, ci: [0.45, 0.65],
-                    keys: ['Contradictory claims from experts', 'Sensational headline', 'Medium domain credibility.'],
-                    features: { content_analysis: 0.6, domain_credibility: 0.5, claims_verification: 0.4, cross_reference: 0.6 },
-                    tokens: [{ word: 'controversial', weight: 0.4 }, { word: 'massive', weight: 0.7 }, { word: 'recessionary', weight: 0.6 }],
-                    phrases: ['massive economic boom', 'complex and polarizing']
+            setLoading: (isLoading) => {
+                const btn = UI.elements.btnAnalyze;
+                if (isLoading) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span style="animation: spin 1s linear infinite; display:inline-block;">⏳</span> Analyzing...';
+                    btn.classList.add('is-loading');
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Run Analysis';
+                    btn.classList.remove('is-loading');
                 }
-            };
+            },
 
-            const data = demoData[scenarioKey];
-            if (!data) return;
+            renderResults: (data) => {
+                // 1. Theme Body based on Risk
+                const risk = SessionManager.getRisk(data.credibilityScore);
+                document.body.className = `risk-${risk.class}`; // Resets dark mode, careful
 
-            // Populate inputs
-            document.getElementById('articleTitle').value = data.title;
-            document.getElementById('articleContent').value = data.content;
-            document.getElementById('articleSource').value = data.source;
+                // 2. Overview Tab
+                document.getElementById('gaugeScore').textContent = Math.round(data.credibilityScore * 100) + '%';
+                document.getElementById('gaugeLabel').textContent = risk.label;
+                document.getElementById('gaugeScore').style.color = risk.color;
 
-            // Simulate a complete analysis result object
-            const result = {
-                articleId: `demo-${Date.now()}`,
-                title: data.title,
-                source: data.source,
-                credibilityScore: data.score,
-                classification: SessionManager.getRiskLevel(data.score).level,
-                explanation: data.keys.join(', '),
-                uncertainty: data.uncertainty,
-                confidenceInterval: data.ci,
-                featureScores: data.features,
-                keyReasons: data.keys,
-                riskLevel: SessionManager.getRiskLevel(data.score),
-                extractedClaims: data.keys.map((k, i) => ({ claim: `Claim ${i + 1}: ${k}`, status: i % 2 === 0 ? "VERIFIED" : "UNVERIFIED" })),
-                attentionTokens: data.tokens,
-                suspiciousPhrases: data.phrases,
-            };
+                // Populate Key Reasons
+                const reasonsList = document.getElementById('keyReasonsList');
+                reasonsList.innerHTML = (data.keyReasons || [])
+                    .map(r => `<li style="margin-bottom: 8px; font-size: 14px;">▍ ${r}</li>`).join('');
 
-            renderResults(result);
-            SessionManager.addAnalysis(result);
-            loadSessionHistory();
-            updateTemporalAnalytics();
-            showToast('✅ Demo loaded and analyzed');
-        }
+                // Render Charts
+                Charts.renderGauge('credibilityGauge', data.credibilityScore);
 
-        function showToast(message) {
-            const toast = document.getElementById('toastContainer');
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
+                // Safe defaults for uncertainty
+                const uncertainty = data.uncertainty || 0;
+                const ci = data.confidenceInterval || [data.credibilityScore - 0.05, data.credibilityScore + 0.05];
 
-        function initializeTabs() {
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            const tabContents = document.querySelectorAll('.tab-content');
+                document.getElementById('uncertaintyValue').textContent = uncertainty.toFixed(2);
+                Charts.renderUncertainty('uncertaintyGauge', uncertainty);
+                Charts.renderCI('confidenceBandChart', data.credibilityScore, ci[0], ci[1]);
 
-            tabButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const targetTabId = button.dataset.tab;
+                // 3. Explanations Tab
+                const phrases = data.suspiciousPhrases || [];
+                const phraseContainer = document.getElementById('suspiciousPhrases');
+                phraseContainer.innerHTML = phrases.length
+                    ? phrases.map(p => `<span class="phrases-chip">${p}</span>`).join('')
+                    : '<span class="text-muted">No suspicious phrases detected.</span>';
 
-                    // Deactivate all
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    tabContents.forEach(content => content.style.display = 'none');
-
-                    // Activate selected
-                    button.classList.add('active');
-                    document.getElementById(targetTabId).style.display = 'block';
-
-                    // Ensure Chart.js renders correctly after switching tabs
-                    if (targetTabId === 'temporalTabContent') {
-                        updateTemporalAnalytics();
-                    } else if (targetTabId === 'overviewTabContent' && activeResult) {
-                        renderOverview(activeResult);
-                    }
+                // Heatmap (Simple Mock for now - pure highlighting)
+                const heatmap = document.getElementById('attentionHeatmap');
+                let text = UI.elements.articleContent.value || "No content.";
+                (data.attentionTokens || []).forEach(token => {
+                    // Highlight matching words
+                    const regex = new RegExp(`\\b${token.word}\\b`, 'gi');
+                    const color = `rgba(255, 200, 0, ${token.weight})`;
+                    text = text.replace(regex, `<span class="attention-token" style="background:${color}">${token.word}</span>`);
                 });
-            });
-        }
+                heatmap.innerHTML = text;
 
-        // --- Initialization ---
+                Charts.renderFeatures('featureChart', data.featureScores || {});
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Enable analyze button once all JS is loaded
-            document.getElementById('btnAnalyze').disabled = false;
+                // 4. Claims Tab
+                const claimsContainer = document.getElementById('claimsList');
+                claimsContainer.innerHTML = (data.extractedClaims || []).map(c => `
+                    <div style="border-bottom:1px solid var(--border-subtle); padding: 8px 0;">
+                        <div class="badge-risk ${c.status === 'VERIFIED' ? 'low' : 'high'}" style="font-size:10px; margin-bottom:4px;">${c.status}</div>
+                        <div style="font-size:14px;">${c.claim}</div>
+                    </div>
+                `).join('') || '<p class="text-muted">No claims found.</p>';
 
-            // Event Listeners
-            document.getElementById('btnAnalyze').addEventListener('click', analyzeArticle);
-            document.getElementById('btnLoadDemo').addEventListener('click', loadDemoScenario);
-            document.getElementById('btnClearHistory').addEventListener('click', SessionManager.clear);
-            document.getElementById('btnExportSession').addEventListener('click', () => {
+                // 5. Switch to Overview
+                UI.switchTab('tab-overview');
+                UI.toast('Analysis Complete');
+            },
+
+            renderHistory: () => {
                 const history = SessionManager.load();
-                const dataStr = JSON.stringify(history, null, 2);
-                const blob = new Blob([dataStr], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `factlens_session_${Date.now()}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                showToast('✅ Session data exported.');
-            });
+                const container = document.getElementById('historyList');
 
-            initializeTabs();
-            loadSessionHistory();
-            renderComparisonModal(); // Render empty comparison grid initially
-        });
+                container.innerHTML = history.map(item => {
+                    const risk = SessionManager.getRisk(item.credibilityScore);
+                    return `
+                    <div class="history-item risk-${risk.class}">
+                        <div class="history-header-row">
+                            <strong style="font-size:14px; display:block; width: 100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title || 'Untitled'}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="badge-risk ${risk.class}" style="font-size:10px;">${Math.round(item.credibilityScore * 100)}%</span>
+                            <span class="text-muted" style="font-size:11px;">${new Date(item.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="history-controls">
+                            <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" onchange="App.compare('${item.id}', this.checked)">
+                                <span style="margin-left:4px;">Compare</span>
+                            </label>
+                            <button onclick="App.loadHistoryItem('${item.id}')" style="margin-left:auto; background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:600;">Load »</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            },
+
+            toast: (msg) => {
+                const t = UI.elements.toastContainer;
+                t.textContent = msg;
+                t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 3000);
+            }
+        };
+
+        /* --- 5. APP LOGIC --- */
+        const App = {
+            compareList: [],
+
+            analyze: async () => {
+                const title = UI.elements.articleTitle.value;
+                const content = UI.elements.articleContent.value;
+                const source = UI.elements.articleSource.value;
+
+                if (!content) return UI.toast('❌ Please enter content.');
+
+                UI.setLoading(true);
+
+                try {
+                    // Real API Call
+                    const response = await fetch(`${CONFIG.API_BASE}/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, content, source })
+                    });
+
+                    let result;
+                    if (response.ok) {
+                        result = await response.json();
+                    } else {
+                        throw new Error('API Failed');
+                    }
+
+                    // Add computed fields if missing (Safety fallback)
+                    result.credibilityScore = result.credibilityScore ?? 0.5;
+                    result.uncertainty = result.uncertainty ?? 0.2;
+                    result.confidenceInterval = result.confidenceInterval || [0.4, 0.6];
+
+                    SessionManager.add({ title: title || 'Analysis', ...result });
+                    UI.renderResults(result);
+                    UI.renderHistory();
+
+                } catch (error) {
+                    console.warn('API Error, using simulation:', error);
+                    UI.toast('⚠️ Backend unavailable. Using Simulation.');
+
+                    // Fallback Simulation
+                    const simScore = Math.random();
+                    const simResult = {
+                        credibilityScore: simScore,
+                        uncertainty: 0.15,
+                        confidenceInterval: [Math.max(0, simScore - 0.1), Math.min(1, simScore + 0.1)],
+                        keyReasons: ['Simulated fallback mode active', 'Network unreachable'],
+                        suspiciousPhrases: ['simulation', 'fallback'],
+                        featureScores: { content: simScore, domain: 0.8, claims: 0.5 },
+                        extractedClaims: [{ claim: "Simulation claim 1", status: "UNVERIFIED" }]
+                    };
+
+                    SessionManager.add({ title: title || 'Simulation', ...simResult });
+                    UI.renderResults(simResult);
+                    UI.renderHistory();
+                } finally {
+                    UI.setLoading(false);
+                }
+            },
+
+            loadDemo: (type) => {
+                if (!type) return;
+                const demos = {
+                    highRiskFake: { t: 'Alien Discovery', c: 'Exclusive report on aliens...', s: 0.92 },
+                    lowRiskCredible: { t: 'Climate Report', c: 'According to peer-reviewed data...', s: 0.12 },
+                    mediumRiskMixed: { t: 'Election Rumors', c: 'Sources say maybe...', s: 0.55 }
+                };
+                const d = demos[type];
+                UI.elements.articleTitle.value = d.t;
+                UI.elements.articleContent.value = d.c;
+                // Auto-trigger analysis for UX
+                App.analyze();
+            },
+
+            loadHistoryItem: (id) => {
+                const history = SessionManager.load();
+                const item = history.find(h => h.id == id);
+                if (item) UI.renderResults(item);
+            },
+
+            compare: (id, isChecked) => {
+                if (isChecked) {
+                    if (App.compareList.length >= 2) {
+                        UI.toast('❌ Max 2 items for comparison');
+                        // Uncheck the box programmatically would be better here
+                        return;
+                    }
+                    App.compareList.push(id);
+                } else {
+                    App.compareList = App.compareList.filter(x => x !== id);
+                }
+
+                // Update Comparison Grid
+                const grid = document.getElementById('comparisonGrid');
+                const history = SessionManager.load();
+
+                grid.innerHTML = App.compareList.map(cid => {
+                    const item = history.find(h => h.id == cid);
+                    return `
+                        <div class="card" style="padding: 16px;">
+                            <h4>${item.title}</h4>
+                            <div class="badge-risk ${SessionManager.getRisk(item.credibilityScore).class}">
+                                Score: ${Math.round(item.credibilityScore * 100)}%
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                if (App.compareList.length === 0) grid.innerHTML = '<div class="text-muted">Select items...</div><div></div>';
+            }
+        };
+
+        // Init
+        document.addEventListener('DOMContentLoaded', UI.init);
+
     </script>
 </body>
 
