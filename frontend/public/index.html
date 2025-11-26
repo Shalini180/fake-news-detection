@@ -81,6 +81,13 @@
             margin: 0;
         }
 
+        /* Animation */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         /* --- 2. GLOBAL COMPONENTS --- */
 
         /* Controls (Buttons & Selects) */
@@ -1034,6 +1041,20 @@
                 UI.elements.demoSelector.addEventListener('change', (e) => App.loadDemo(e.target.value));
                 document.getElementById('btnClearHistory').addEventListener('click', SessionManager.clear);
 
+                // Export button listener
+                document.getElementById('btnExportSession').addEventListener('click', () => {
+                    const history = SessionManager.load();
+                    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `factlens_session_${Date.now()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    UI.toast('✅ Session exported.');
+                });
+
                 // Tab Logic
                 const tabs = document.querySelectorAll('[role="tab"]');
                 tabs.forEach(tab => {
@@ -1126,7 +1147,15 @@
 
                 // Safe defaults for uncertainty
                 const uncertainty = data.uncertainty || 0;
-                const ci = data.confidenceInterval || [data.credibilityScore - 0.05, data.credibilityScore + 0.05];
+
+                // Clamp CI values
+                let [ciLower, ciUpper] = data.confidenceInterval || [
+                    data.credibilityScore - 0.05,
+                    data.credibilityScore + 0.05
+                ];
+                ciLower = Math.max(0, ciLower);
+                ciUpper = Math.min(1, ciUpper);
+                const ci = [ciLower, ciUpper];
 
                 document.getElementById('uncertaintyValue').textContent = uncertainty.toFixed(2);
                 Charts.renderUncertainty('uncertaintyGauge', uncertainty);
@@ -1139,15 +1168,20 @@
                     ? phrases.map(p => `<span class="phrases-chip">${p}</span>`).join('')
                     : '<span class="text-muted">No suspicious phrases detected.</span>';
 
-                // Heatmap (XSS SAFE)
+                // Heatmap (XSS SAFE & Regex Safe)
                 const heatmap = document.getElementById('attentionHeatmap');
                 let rawText = UI.elements.articleContent.value || "No content.";
-                // Escape HTML first to prevent injection
                 let safeText = UI.escapeHtml(rawText);
 
+                function escapeRegex(str) {
+                    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                }
+
                 (data.attentionTokens || []).forEach(token => {
+                    const pattern = escapeRegex(token.word || '');
+                    if (!pattern) return;
                     // Highlight matching words
-                    const regex = new RegExp(`\\b${token.word}\\b`, 'gi');
+                    const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
                     const color = `rgba(255, 200, 0, ${token.weight})`;
                     // Use replace with callback to avoid re-escaping HTML tags we just added
                     safeText = safeText.replace(regex, (match) => `<span class="attention-token" style="background:${color}">${match}</span>`);
@@ -1157,7 +1191,6 @@
                 Charts.renderFeatures('featureChart', data.featureScores || {});
 
                 // Uncertainty Breakdown
-                const ciLower = ci[0], ciUpper = ci[1];
                 const breakdownBody = document.getElementById('uncertaintyBreakdown').querySelector('tbody');
                 breakdownBody.innerHTML = `
                     <tr><td>Entropy (Uncertainty)</td><td>${uncertainty.toFixed(3)}</td></tr>
@@ -1266,6 +1299,13 @@
                     UI.renderHistory();
                     UI.updateSystemStats();
 
+                    // Live refresh if Temporal tab is visible
+                    const temporalPanel = document.getElementById('panel-temporal');
+                    if (!temporalPanel.hidden) {
+                        Charts.renderTimeSeries('timeSeriesChart');
+                        Charts.renderDistribution('distributionChart');
+                    }
+
                 } catch (error) {
                     console.warn('API Error, using simulation:', error);
                     UI.toast('⚠️ Backend unavailable. Using Simulation.');
@@ -1289,6 +1329,13 @@
                     UI.renderResults(simResult);
                     UI.renderHistory();
                     UI.updateSystemStats();
+
+                    // Live refresh if Temporal tab is visible
+                    const temporalPanel = document.getElementById('panel-temporal');
+                    if (!temporalPanel.hidden) {
+                        Charts.renderTimeSeries('timeSeriesChart');
+                        Charts.renderDistribution('distributionChart');
+                    }
                 } finally {
                     UI.setLoading(false);
                 }
