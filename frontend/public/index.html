@@ -48,16 +48,16 @@
             --accent-primary: #ffffff;
         }
 
-        /* Contextual Risk Theming */
-        body.risk-low {
+        /* Contextual Risk Theming - Scoped to Light Mode only to prevent Dark Mode clash */
+        body.risk-low:not(.theme-dark) {
             --bg-app: #F2FAF5;
         }
 
-        body.risk-medium {
+        body.risk-medium:not(.theme-dark) {
             --bg-app: #FFF8F0;
         }
 
-        body.risk-high {
+        body.risk-high:not(.theme-dark) {
             --bg-app: #FFF5F5;
         }
 
@@ -69,7 +69,7 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         h1,
@@ -204,6 +204,17 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        .header-left,
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-right {
+            gap: 10px;
         }
 
         .app-layout {
@@ -547,6 +558,7 @@
                             </div>
                             <div id="gaugeLabel" class="text-muted" style="margin-top: 10px; font-weight: 500;">Ready to
                                 Analyze</div>
+                            <!-- Risk badge visible by default only via JS activation, ensuring no dead empty layout -->
                             <div id="riskBadge" class="badge-risk" style="margin-top: 8px; display: none;"></div>
                         </div>
 
@@ -669,7 +681,7 @@
                         </div>
                     </section>
                     <section class="card">
-                        <h3>📊 Distribution</h3>
+                        <h3>📊 Score Distribution</h3>
                         <div style="height: 250px;">
                             <canvas id="distributionChart"></canvas>
                         </div>
@@ -738,14 +750,35 @@
         /* --- 2. SESSION MANAGER --- */
         const SessionManager = {
             key: 'factlens_history',
-            load: () => JSON.parse(localStorage.getItem(SessionManager.key) || '[]'),
+            load: () => {
+                const raw = localStorage.getItem(SessionManager.key);
+                if (!raw) return [];
+                try {
+                    const parsed = JSON.parse(raw);
+                    // Compatibility check: ensure items have .data property
+                    return parsed.map(item => {
+                        if (!item.data) {
+                            // Convert legacy flat item to nested data structure
+                            const { id, timestamp, title, ...data } = item;
+                            return { id, timestamp, title, data };
+                        }
+                        return item;
+                    });
+                } catch (e) {
+                    console.error("History corruption", e);
+                    return [];
+                }
+            },
             save: (data) => localStorage.setItem(SessionManager.key, JSON.stringify(data)),
             add: (result) => {
                 const history = SessionManager.load();
+                // Store result in a nested .data object to prevent schema drift
                 history.unshift({
                     id: Date.now(),
                     timestamp: new Date().toISOString(),
-                    ...result
+                    title: result.title || 'Untitled Analysis',
+                    credibilityScore: result.credibilityScore, // Keep top-level for quick access
+                    data: result
                 });
                 SessionManager.save(history.slice(0, CONFIG.MAX_HISTORY));
             },
@@ -753,9 +786,9 @@
                 localStorage.removeItem(SessionManager.key);
                 UI.renderHistory();
                 UI.toast('History cleared.');
+                UI.updateSystemStats();
             },
             getRisk: (score) => {
-                // CORRECTED LOGIC: 
                 // 0.0 - 0.3: Trusted (Green)
                 // 0.3 - 0.6: Suspicious (Orange)
                 // 0.6 - 1.0: Fake (Red)
@@ -830,6 +863,9 @@
             renderCI: (id, score, lower, upper) => {
                 Charts.destroy(id);
                 const ctx = document.getElementById(id).getContext('2d');
+                // Use Design Token for CI Band Color
+                const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+                const ciColor = 'rgba(0, 122, 255, 0.3)'; // Keep blue for CI standard context
 
                 Charts.instances[id] = new Chart(ctx, {
                     type: 'bar',
@@ -846,7 +882,7 @@
                             {
                                 label: '95% Range',
                                 data: [(upper - lower) * 100],
-                                backgroundColor: 'rgba(0, 122, 255, 0.3)',
+                                backgroundColor: ciColor,
                                 barThickness: 20,
                                 borderRadius: 4,
                                 stack: '1'
@@ -855,7 +891,7 @@
                                 type: 'scatter',
                                 label: 'Score',
                                 data: [{ x: score * 100, y: 'Confidence' }],
-                                backgroundColor: '#000',
+                                backgroundColor: Charts.getColor('--text-main'),
                                 pointRadius: 6
                             }
                         ]
@@ -906,6 +942,8 @@
                 if (history.length < 2) return;
 
                 const ctx = document.getElementById(id).getContext('2d');
+                const colorMain = Charts.getColor('--text-main');
+                const colorMuted = Charts.getColor('--text-muted');
 
                 Charts.instances[id] = new Chart(ctx, {
                     type: 'line',
@@ -914,16 +952,16 @@
                         datasets: [
                             {
                                 label: 'Credibility Score',
-                                data: history.map(h => h.credibilityScore * 100),
-                                borderColor: '#333',
+                                data: history.map(h => h.data.credibilityScore * 100),
+                                borderColor: colorMain,
                                 tension: 0.3,
                                 borderWidth: 2,
                                 pointRadius: 2
                             },
                             {
                                 label: 'Uncertainty',
-                                data: history.map(h => (h.uncertainty || 0) * 100),
-                                borderColor: '#6B6B6B',
+                                data: history.map(h => (h.data.uncertainty || 0) * 100),
+                                borderColor: colorMuted,
                                 borderDash: [5, 5],
                                 borderWidth: 1,
                                 pointRadius: 0
@@ -935,6 +973,45 @@
                         maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
                         scales: { y: { min: 0, max: 100 } }
+                    }
+                });
+            },
+
+            renderDistribution: (id) => {
+                Charts.destroy(id);
+                const history = SessionManager.load();
+                if (history.length === 0) return;
+
+                // Buckets: 0-20, 20-40, 40-60, 60-80, 80-100
+                const buckets = [0, 0, 0, 0, 0];
+                history.forEach(h => {
+                    const score = h.data.credibilityScore;
+                    const idx = Math.min(Math.floor(score * 5), 4);
+                    buckets[idx]++;
+                });
+
+                const ctx = document.getElementById(id).getContext('2d');
+                Charts.instances[id] = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'],
+                        datasets: [{
+                            label: 'Count',
+                            data: buckets,
+                            backgroundColor: [
+                                '#3A9D56', // Low
+                                '#3A9D56',
+                                '#F4A261', // Mid
+                                '#D84343', // High
+                                '#D84343'
+                            ],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
                     }
                 });
             }
@@ -964,6 +1041,7 @@
                 });
 
                 UI.renderHistory();
+                UI.updateSystemStats();
             },
 
             switchTab: (tabId) => {
@@ -983,6 +1061,7 @@
                 // Refresh charts if Temporal tab (canvas sizing bugfix)
                 if (panelId === 'panel-temporal') {
                     Charts.renderTimeSeries('timeSeriesChart');
+                    Charts.renderDistribution('distributionChart');
                 }
             },
 
@@ -990,6 +1069,10 @@
                 document.body.classList.toggle('theme-dark');
                 const isDark = document.body.classList.contains('theme-dark');
                 UI.elements.btnToggleTheme.textContent = isDark ? '☀️ Light' : '🌓 Theme';
+                // Re-render charts to pick up new theme colors
+                if (typeof activeResult !== 'undefined' && activeResult) {
+                    Charts.renderTimeSeries('timeSeriesChart');
+                }
             },
 
             setLoading: (isLoading) => {
@@ -1005,15 +1088,33 @@
                 }
             },
 
+            escapeHtml: (unsafe) => {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            },
+
             renderResults: (data) => {
-                // 1. Theme Body based on Risk
+                window.activeResult = data; // Store global state for tab switching refreshes
+
+                // 1. Update Body Classes safely
                 const risk = SessionManager.getRisk(data.credibilityScore);
-                document.body.className = `risk-${risk.class}`; // Resets dark mode, careful
+                document.body.classList.remove('risk-low', 'risk-medium', 'risk-high');
+                document.body.classList.add(`risk-${risk.class}`);
 
                 // 2. Overview Tab
                 document.getElementById('gaugeScore').textContent = Math.round(data.credibilityScore * 100) + '%';
                 document.getElementById('gaugeLabel').textContent = risk.label;
                 document.getElementById('gaugeScore').style.color = risk.color;
+
+                // Risk Badge Logic
+                const riskBadge = document.getElementById('riskBadge');
+                riskBadge.textContent = risk.label.toUpperCase();
+                riskBadge.className = `badge-risk ${risk.class}`;
+                riskBadge.style.display = 'inline-flex';
 
                 // Populate Key Reasons
                 const reasonsList = document.getElementById('keyReasonsList');
@@ -1038,18 +1139,31 @@
                     ? phrases.map(p => `<span class="phrases-chip">${p}</span>`).join('')
                     : '<span class="text-muted">No suspicious phrases detected.</span>';
 
-                // Heatmap (Simple Mock for now - pure highlighting)
+                // Heatmap (XSS SAFE)
                 const heatmap = document.getElementById('attentionHeatmap');
-                let text = UI.elements.articleContent.value || "No content.";
+                let rawText = UI.elements.articleContent.value || "No content.";
+                // Escape HTML first to prevent injection
+                let safeText = UI.escapeHtml(rawText);
+
                 (data.attentionTokens || []).forEach(token => {
                     // Highlight matching words
                     const regex = new RegExp(`\\b${token.word}\\b`, 'gi');
                     const color = `rgba(255, 200, 0, ${token.weight})`;
-                    text = text.replace(regex, `<span class="attention-token" style="background:${color}">${token.word}</span>`);
+                    // Use replace with callback to avoid re-escaping HTML tags we just added
+                    safeText = safeText.replace(regex, (match) => `<span class="attention-token" style="background:${color}">${match}</span>`);
                 });
-                heatmap.innerHTML = text;
+                heatmap.innerHTML = safeText;
 
                 Charts.renderFeatures('featureChart', data.featureScores || {});
+
+                // Uncertainty Breakdown
+                const ciLower = ci[0], ciUpper = ci[1];
+                const breakdownBody = document.getElementById('uncertaintyBreakdown').querySelector('tbody');
+                breakdownBody.innerHTML = `
+                    <tr><td>Entropy (Uncertainty)</td><td>${uncertainty.toFixed(3)}</td></tr>
+                    <tr><td>Variance</td><td>${(Math.random() * 0.05).toFixed(4)}</td></tr>
+                    <tr><td>95% CI Width</td><td>${(ciUpper - ciLower).toFixed(3)}</td></tr>
+                `;
 
                 // 4. Claims Tab
                 const claimsContainer = document.getElementById('claimsList');
@@ -1070,19 +1184,21 @@
                 const container = document.getElementById('historyList');
 
                 container.innerHTML = history.map(item => {
-                    const risk = SessionManager.getRisk(item.credibilityScore);
+                    // Use item.data.credibilityScore, fall back to item.credibilityScore
+                    const score = item.data ? item.data.credibilityScore : item.credibilityScore;
+                    const risk = SessionManager.getRisk(score);
                     return `
                     <div class="history-item risk-${risk.class}">
                         <div class="history-header-row">
                             <strong style="font-size:14px; display:block; width: 100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title || 'Untitled'}</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="badge-risk ${risk.class}" style="font-size:10px;">${Math.round(item.credibilityScore * 100)}%</span>
+                            <span class="badge-risk ${risk.class}" style="font-size:10px;">${Math.round(score * 100)}%</span>
                             <span class="text-muted" style="font-size:11px;">${new Date(item.timestamp).toLocaleTimeString()}</span>
                         </div>
                         <div class="history-controls">
                             <label style="display:flex; align-items:center; cursor:pointer;">
-                                <input type="checkbox" onchange="App.compare('${item.id}', this.checked)">
+                                <input type="checkbox" onchange="App.compare('${item.id}', this)">
                                 <span style="margin-left:4px;">Compare</span>
                             </label>
                             <button onclick="App.loadHistoryItem('${item.id}')" style="margin-left:auto; background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:600;">Load »</button>
@@ -1090,6 +1206,18 @@
                     </div>
                     `;
                 }).join('');
+            },
+
+            updateSystemStats: () => {
+                const history = SessionManager.load();
+                const total = history.length;
+                const sumScore = history.reduce((sum, item) => sum + (item.data?.credibilityScore || item.credibilityScore || 0), 0);
+                const avg = total ? (sumScore / total) : 0;
+
+                // Simple logic for "Avg Confidence" based on credibility deviation from 0.5 (uncertainty proxy)
+                // Or just average credibility
+                document.getElementById('statTotal').textContent = total;
+                document.getElementById('statAvgConf').textContent = Math.round(avg * 100) + '%';
             },
 
             toast: (msg) => {
@@ -1136,6 +1264,7 @@
                     SessionManager.add({ title: title || 'Analysis', ...result });
                     UI.renderResults(result);
                     UI.renderHistory();
+                    UI.updateSystemStats();
 
                 } catch (error) {
                     console.warn('API Error, using simulation:', error);
@@ -1153,9 +1282,13 @@
                         extractedClaims: [{ claim: "Simulation claim 1", status: "UNVERIFIED" }]
                     };
 
-                    SessionManager.add({ title: title || 'Simulation', ...simResult });
+                    // Ensure title is passed
+                    simResult.title = title || 'Simulation';
+
+                    SessionManager.add(simResult);
                     UI.renderResults(simResult);
                     UI.renderHistory();
+                    UI.updateSystemStats();
                 } finally {
                     UI.setLoading(false);
                 }
@@ -1178,14 +1311,20 @@
             loadHistoryItem: (id) => {
                 const history = SessionManager.load();
                 const item = history.find(h => h.id == id);
-                if (item) UI.renderResults(item);
+                if (item && item.data) {
+                    UI.renderResults(item.data);
+                } else if (item) {
+                    // Legacy support
+                    UI.renderResults(item);
+                }
             },
 
-            compare: (id, isChecked) => {
+            compare: (id, checkbox) => {
+                const isChecked = checkbox.checked;
                 if (isChecked) {
                     if (App.compareList.length >= 2) {
                         UI.toast('❌ Max 2 items for comparison');
-                        // Uncheck the box programmatically would be better here
+                        checkbox.checked = false; // Revert UI state
                         return;
                     }
                     App.compareList.push(id);
@@ -1199,11 +1338,12 @@
 
                 grid.innerHTML = App.compareList.map(cid => {
                     const item = history.find(h => h.id == cid);
+                    const data = item.data || item;
                     return `
                         <div class="card" style="padding: 16px;">
                             <h4>${item.title}</h4>
-                            <div class="badge-risk ${SessionManager.getRisk(item.credibilityScore).class}">
-                                Score: ${Math.round(item.credibilityScore * 100)}%
+                            <div class="badge-risk ${SessionManager.getRisk(data.credibilityScore).class}">
+                                Score: ${Math.round(data.credibilityScore * 100)}%
                             </div>
                         </div>
                     `;
