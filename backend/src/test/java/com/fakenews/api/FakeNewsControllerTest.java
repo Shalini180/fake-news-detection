@@ -1,7 +1,7 @@
 package com.fakenews.api;
 
-import com.fakenews.api.dto.ArticleRequest;
-import com.fakenews.api.dto.FakeNewsResult;
+import com.fakenews.dto.ArticleRequest;
+import com.fakenews.dto.FakeNewsResult;
 import com.fakenews.service.RobertaService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

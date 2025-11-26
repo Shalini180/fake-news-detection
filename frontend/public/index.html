@@ -10,7 +10,9 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=Crimson+Pro:wght@400;500&display=swap"
+        rel="stylesheet">
 
     <!-- Chart.js for visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -22,11 +24,34 @@
     <style>
         /* Additional inline styles for research dashboard */
         :root {
+            /* Background Colors */
+            --bg-app: #F9F7F3;
+            --bg-card: #FFFFFF;
+            --border-subtle: #E2E2E2;
+            /* Text Colors */
+            --text-main: #1A1A1A;
+            --text-muted: #6B6B6B;
+            /* Risk Level Colors */
+            --risk-low: #3A9D56;
+            --risk-medium: #F4A261;
+            --risk-high: #D84343;
+            /* Legacy token for compatibility */
             --primary-rgb: 139, 92, 246;
         }
 
+        /* Base Typography */
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-app);
+            color: var(--text-main);
+        }
+
+        .app-title {
+            font-family: 'Playfair Display', serif;
+        }
+
+        .article-body {
+            font-family: 'Crimson Pro', 'Georgia', serif;
         }
 
         .toast {
@@ -349,269 +374,198 @@
             font-size: 12px;
             color: var(--muted);
         }
+
+        /* Header */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 64px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* Three-Column Layout */
+        .app-layout {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr) 320px;
+            gap: 24px;
+            padding: 24px 64px 32px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .panel-left,
+        .panel-right {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-center {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .app-layout {
+                grid-template-columns: 280px minmax(0, 1fr);
+                padding: 24px 32px;
+            }
+
+            .panel-right {
+                display: none;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app-header {
+                padding: 16px 20px;
+            }
+
+            .app-title {
+                font-size: 22px;
+            }
+
+            .app-layout {
+                grid-template-columns: 1fr;
+                padding: 16px 20px;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <!-- Dashboard Container -->
-    <div class="dashboard-container">
-        <!-- Header -->
-        <header class="dashboard-header">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="font-size: 32px; font-weight: 800; margin: 0 0 8px 0;">
-                    🔍 Fake News Detection – Research Dashboard
-                </h1>
-                <p style="color: var(--muted); font-size: 14px;">
-                    AI-Powered Misinformation Analysis with Explainable Results
-                </p>
-                <div style="margin-top: 12px;">
-                    <button id="btnTheme" class="btn-icon" title="Toggle theme">🌓 Theme</button>
-                    <button id="btnToggleHistory" class="btn-icon" title="Toggle history panel"
-                        style="display: none;">📊 History</button>
+    <!-- Application Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="app-title">📰 FactLens</div>
+            <div class="app-subtitle">AI-Powered Misinformation Research</div>
+        </div>
+        <div class="header-right">
+            <select id="demoMode"
+                style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 14px;">
+                <option value="">Select Demo...</option>
+                <option value="credible">✅ Credible Article</option>
+                <option value="suspicious">⚠️ Suspicious Article</option>
+                <option value="fake">❌ Fake News</option>
+                <option value="satire">😄 Satire</option>
+                <option value="mixed">🔀 Mixed Signals</option>
+            </select>
+        </div>
+    </header>
+    <!-- Main Application Layout -->
+    <div class="app-layout">
+        <!-- LEFT PANEL: Query Form -->
+        <aside class="panel-left">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📝 Analyze Article</h3>
                 </div>
-            </div>
-        </header>
-
-        <!-- Query Panel (Left Sidebar) -->
-        <aside class="query-panel card">
-            <div class="card-header">
-                <h2 class="card-title">📝 Analyze Article</h2>
-                <button id="btnDemoMode" class="btn-icon" title="Load demo data">🎬 Demo</button>
-            </div>
-
-            <!-- Demo Selector (hidden by default) -->
-            <div id="demoSelector" class="hidden"
-                style="margin-bottom: 16px; padding: 12px; background: var(--bg-elev); border-radius: 8px;">
-                <label for="demoSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Select Demo
-                    Scenario:</label>
-                <select id="demoSelect"
-                    style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--muted); background: var(--surface); color: var(--text); margin-bottom: 8px;">
-                    <option value="highRiskFake">🚨 High-Risk Fake News</option>
-                    <option value="lowRiskCredible">✅ Low-Risk Credible News</option>
-                    <option value="mediumRiskMixed">⚠️ Mixed Signals</option>
-                    <option value="claimsHeavy">📋 Claims-Heavy Article</option>
-                    <option value="suspiciousDomain">🔗 Suspicious Domain</option>
-                </select>
-                <button id="btnLoadDemo" class="btn" style="width: 100%;">Load Demo</button>
-            </div>
-
-            <!-- Article Form -->
-            <form id="form" onsubmit="event.preventDefault(); analyzeArticle();">
-                <div style="margin-bottom: 12px;">
-                    <label for="articleContent">Article Content</label>
-                    <textarea id="articleContent" placeholder="Paste article content here..."
-                        style="width: 100%; min-height: 150px; padding: 12px; border-radius: 8px; border: 1px solid var(--muted); background: var(--bg-elev); color: var(--text);"></textarea>
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label for="articleTitle">Title (optional)</label>
-                    <input type="text" id="articleTitle" placeholder="Article Title"
-                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--muted); background: var(--bg-elev); color: var(--text);">
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label for="articleSource">Source URL (optional)</label>
-                    <input type="text" id="articleSource" placeholder="https://example.com/article"
-                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--muted); background: var(--bg-elev); color: var(--text);">
-                </div>
-                <button type="submit" class="btn" id="btnAnalyze" style="width: 100%;">
-                    🚀 Analyze Article
-                </button>
-            </form>
-        </aside>
-
-        <!-- Results Workspace (Center, Tabbed) -->
-        <main class="results-workspace">
-            <div class="tab-container card">
-                <!-- Tab Navigation -->
-                <nav class="tab-nav sticky-top">
-                    <button class="tab-btn active" data-tab="overview">Overview</button>
-                    <button class="tab-btn" data-tab="explanations">Explanations</button>
-                    <button class="tab-btn" data-tab="claims">Claims & Evidence</button>
-                    <button class="tab-btn" data-tab="temporal">Temporal</button>
-                    <button class="tab-btn" data-tab="system">System</button>
-                </nav>
-
-                <!-- Tab 1: Overview -->
-                <div id="tab-overview" class="tab-panel active">
-                    <div class="overview-grid">
-                        <div class="gauge-container">
-                            <canvas id="credibilityGauge" width="200" height="200"></canvas>
-                            <div class="gauge-label">
-                                <span id="gaugeScore">--%</span>
-                                <span id="gaugeLabel">Awaiting analysis</span>
-                            </div>
-                        </div>
-                        <div class="risk-badge-container">
-                            <div id="riskBadge" class="risk-badge" style="background: var(--muted);">
-                                <span class="risk-icon">⏳</span>
-                                <span class="risk-text">Pending</span>
-                            </div>
-                        </div>
+                <form id="analysisForm" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div>
+                        <label
+                            style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Title</label>
+                        <input type="text" id="articleTitle" placeholder="Article headline..."
+                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px;">
                     </div>
-                    <div id="keyReasonsContainer">
-                        <h3>Key Reasons</h3>
-                        <ul id="keyReasonsList" class="key-reasons-list">
-                            <li class="hint">Analyze an article to see key reasoning</li>
-                        </ul>
+                    <div>
+                        <label
+                            style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Content</label>
+                        <textarea id="articleContent" rows="8" placeholder="Paste article text here..."
+                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px; font-family: var(--font-mono); resize: vertical;"></textarea>
                     </div>
-
-                    <!-- Uncertainty Metrics (NEW) -->
-                    <div class="overview-uncertainty"
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px;">
-                        <div class="card uncertainty-card">
-                            <h3>Model Uncertainty</h3>
-                            <div style="height: 160px; display: flex; align-items: center; justify-content: center;">
-                                <canvas id="uncertaintyGauge" height="160"></canvas>
-                            </div>
-                            <div id="uncertaintySummary" class="uncertainty-summary"
-                                style="text-align: center; margin-top: 12px; font-size: 13px; color: var(--muted);">
-                            </div>
-                        </div>
-
-                        <div class="card ci-card">
-                            <h3>95% Confidence Interval</h3>
-                            <div style="height: 140px;">
-                                <canvas id="confidenceBandChart" height="140"></canvas>
-                            </div>
-                            <p class="hint small" id="ciTextHint" style="text-align: center; margin: 8px 0 0 0;"></p>
-                        </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Source URL
+                            (Optional)</label>
+                        <input type="url" id="articleSource" placeholder="https://example.com/article"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 14px;">
                     </div>
-                </div>
-
-                <!-- Tab 2: Explanations -->
-                <div id="tab-explanations" class="tab-panel">
-                    <h3>Token Attention Heatmap</h3>
-                    <div id="attentionHeatmap" class="attention-strip">
-                        <span class="hint">Attention visualization will appear after analysis</span>
-                    </div>
-
-                    <h3 style="margin-top: 24px;">Feature Importance</h3>
-                    <div style="height: 250px; margin-bottom: 24px;">
-                        <canvas id="featureChart"></canvas>
-                    </div>
-
-                    <h3>Suspicious Phrases</h3>
-                    <div id="suspiciousPhrases" class="suspicious-phrases-list">
-                        <div class="hint">Suspicious phrases will be highlighted here</div>
-                    </div>
-
-                    <!-- Uncertainty Breakdown (NEW) -->
-                    <section class="card" style="margin-top: 32px;">
-                        <h3>Uncertainty Breakdown</h3>
-                        <div id="uncertaintyBreakdown" class="uncertainty-breakdown">
-                            <p class="hint">Uncertainty metrics will appear after analysis</p>
-                        </div>
-                    </section>
-                </div>
-
-                <!-- Tab 3: Claims & Evidence -->
-                <div id="tab-claims" class="tab-panel">
-                    <div class="claims-filter" style="margin-bottom: 16px;">
-                        <button class="filter-btn active" data-filter="all">All</button>
-                        <button class="filter-btn" data-filter="VERIFIED">Verified</button>
-                        <button class="filter-btn" data-filter="SUPPORTED">Supported</button>
-                        <button class="filter-btn" data-filter="PENDING">Pending</button>
-                        <button class="filter-btn" data-filter="UNVERIFIED">Unverified</button>
-                    </div>
-                    <div id="claimsList" class="claims-list">
-                        <div class="hint">Extracted claims will appear here</div>
-                    </div>
-
-                    <h3 style="margin-top: 32px;">Knowledge Graph</h3>
-                    <div id="knowledgeGraph" style="min-height: 300px;">
-                        <div class="hint">Knowledge graph visualization will appear here</div>
-                    </div>
-                </div>
-
-                <!-- Tab 4: Temporal & Comparative -->
-                <div id="tab-temporal" class="tab-panel">
-                    <h3>Credibility Score Timeline</h3>
-                    <div style="height: 200px; margin-bottom: 32px;">
-                        <canvas id="timeSeriesChart"></canvas>
-                    </div>
-
-                    <h3>Risk Distribution</h3>
-                    <div style="height: 200px; margin-bottom: 32px;">
-                        <canvas id="distributionChart"></canvas>
-                    </div>
-
-                    <div class="comparison-controls">
-                        <button id="btnCompare" class="btn" disabled>Compare Selected (0/2)</button>
-                    </div>
-                    <p class="hint">Select 2 items from history to compare side-by-side</p>
-                </div>
-
-                <!-- Tab 5: System Metrics -->
-                <div id="tab-system" class="tab-panel">
-                    <div class="metrics-grid">
-                        <div class="metric-card">
-                            <div class="metric-value" id="metricTotal">0</div>
-                            <div class="metric-label">Total Analyses</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value" id="metricAvg">0.00</div>
-                            <div class="metric-label">Avg Risk Score</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value" id="metricHigh">0</div>
-                            <div class="metric-label">High Risk</div>
-                        </div>
-                    </div>
-
-                    <h3>Model Limitations</h3>
-                    <div class="limitations-panel">
-                        <ul>
-                            <li>Optimized for English text (200+ words recommended)</li>
-                            <li>May not detect sophisticated disinformation campaigns</li>
-                            <li>Domain credibility database is not exhaustive</li>
-                            <li>No real-time fact-checking integration</li>
-                            <li>Attention weights are interpretive, not definitive</li>
-                        </ul>
-                    </div>
-
-                    <button id="btnExportSession" class="btn-secondary" style="width: 100%;">
-                        📥 Download Session JSON
+                    <button type="button" id="btnAnalyze" class="btn"
+                        style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;">
+                        🚀 Analyze Article
                     </button>
+                </form>
+            </div>
+        </aside>
+        <!-- CENTER PANEL: Results Tabs -->
+        <main class="panel-center">
+            <div class="tab-container">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+                    <button class="tab-btn" data-tab="explanations">💡 Explanations</button>
+                    <button class="tab-btn" data-tab="claims">🔍 Claims</button>
+                    <button class="tab-btn" data-tab="temporal">📈 Temporal</button>
+                </div>
+                <!-- Tab Panels -->
+                <div id="overview" class="tab-panel active">
+                    <div class="card">
+                        <h3 class="card-title">Analysis Results</h3>
+                        <div id="resultsContainer">
+                            <p class="hint">👆 Enter article content and click "Analyze Article" to begin</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="explanations" class="tab-panel">
+                    <div class="card">
+                        <h3 class="card-title">Explainability</h3>
+                        <div id="explanationsContainer">
+                            <p class="hint">Analysis explanations will appear here</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="claims" class="tab-panel">
+                    <div class="card">
+                        <h3 class="card-title">Extracted Claims</h3>
+                        <div id="claimsContainer">
+                            <p class="hint">Extracted claims will appear here</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="temporal" class="tab-panel">
+                    <div class="card">
+                        <h3 class="card-title">Temporal Analytics</h3>
+                        <div id="temporalContainer">
+                            <p class="hint">Temporal data will appear here</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
-
-        <!-- History Panel (Right Sidebar) -->
-        <aside class="history-panel card scrollable">
-            <div class="card-header sticky-top">
-                <h3 class="card-title" style="font-size: 16px;">📊 Session History</h3>
-                <button id="btnClearHistory" class="btn-icon" title="Clear history">🗑️</button>
-            </div>
-            <div id="historyList" class="history-list">
-                <p class="hint">Analysis history will appear here</p>
+        <!-- RIGHT PANEL: History -->
+        <aside class="panel-right">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📚 History</h3>
+                    <button class="btn-icon" id="btnClearHistory" title="Clear all">🗑️</button>
+                </div>
+                <div id="sessionHistory" class="history-list">
+                    <p class="hint">Analysis history will appear here</p>
+                </div>
             </div>
         </aside>
     </div>
-
-    <!-- Comparison Modal -->
-    <div id="comparisonModal" class="comparison-modal">
-        <div class="comparison-content">
-            <div class="modal-header">
-                <h2>Side-by-Side Comparison</h2>
-                <button id="btnCloseComparison" class="btn-close">×</button>
-            </div>
-            <div id="comparisonGrid" class="comparison-grid">
-                <!-- Populated dynamically -->
-            </div>
-        </div>
-    </div>
-
-    <!-- History overlay for mobile -->
-    <div id="historyOverlay" class="history-overlay"></div>
-
-    <!-- Toast container -->
+    <!-- Toast Notifications -->
     <div id="toastContainer"></div>
-
     <!-- Scripts -->
     <script src="api.js"></script>
-    <script src="demo-data.js"></script>
-    <script src="session.js"></script>
     <script src="visualizations.js"></script>
-    <script src="graph-viz.js"></script>
     <script src="../app.js"></script>
 </body>
 

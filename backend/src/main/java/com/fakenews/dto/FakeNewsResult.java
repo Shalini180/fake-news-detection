@@ -1,7 +1,13 @@
-package com.fakenews.api.dto;
+package com.fakenews.dto;
 
 import java.util.List;
 import java.util.Map;
+
+// Import DTO classes
+import com.fakenews.dto.AttentionToken;
+import com.fakenews.dto.TopWord;
+import com.fakenews.dto.ClaimResult;
+import com.fakenews.dto.UncertaintyDto;
 
 public class FakeNewsResult {
 
@@ -98,9 +104,9 @@ public class FakeNewsResult {
         return extractedClaims;
     }
 
-    public UncertaintyDto getUncertain
-
-ty() { return uncertainty; }
+    public UncertaintyDto getUncertainty() {
+        return uncertainty;
+    }
 
     // ===== setters =====
     public void setArticleId(String id) {

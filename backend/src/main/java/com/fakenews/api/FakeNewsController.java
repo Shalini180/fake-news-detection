@@ -8,7 +8,7 @@ import com.fakenews.explainability.ExplainabilityEngine;
 import com.fakenews.explainability.LIMEExplanation;
 import com.fakenews.graph.KnowledgeGraph;
 import com.fakenews.model.Article;
-import com.fakenews.api.dto.*;
+import com.fakenews.dto.*;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -85,7 +85,7 @@ public class FakeNewsController {
         List<DetectionResult> results = detector.analyzeMultipleArticles(articles);
 
         List<FakeNewsResult> responses = results.stream()
-                .map(this::buildResponse)
+                .map(result -> buildResponse(result, null))
                 .toList();
 
         return ResponseEntity.ok(new BatchAnalysisResponse(responses.size(), responses));
