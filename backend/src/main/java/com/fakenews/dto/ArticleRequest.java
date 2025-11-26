@@ -1,4 +1,4 @@
-package com.fakenews.api.dto;
+package com.fakenews.dto;
 
 public class ArticleRequest {
     private String title;

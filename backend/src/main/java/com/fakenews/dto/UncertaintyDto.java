@@ -1,4 +1,4 @@
-package com.fakenews.api.dto;
+package com.fakenews.dto;
 
 import lombok.Data;
 import java.util.List;

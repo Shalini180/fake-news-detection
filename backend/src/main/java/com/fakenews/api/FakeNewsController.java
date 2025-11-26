@@ -8,7 +8,7 @@ import com.fakenews.explainability.ExplainabilityEngine;
 import com.fakenews.explainability.LIMEExplanation;
 import com.fakenews.graph.KnowledgeGraph;
 import com.fakenews.model.Article;
-import com.fakenews.api.dto.*;
+import com.fakenews.dto.*;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
