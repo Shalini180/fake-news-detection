@@ -85,7 +85,7 @@ public class FakeNewsController {
         List<DetectionResult> results = detector.analyzeMultipleArticles(articles);
 
         List<FakeNewsResult> responses = results.stream()
-                .map(this::buildResponse)
+                .map(result -> buildResponse(result, null))
                 .toList();
 
         return ResponseEntity.ok(new BatchAnalysisResponse(responses.size(), responses));
