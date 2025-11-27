@@ -2,18 +2,14 @@
 <html lang="en">
 
 <head>
-       
     <meta charset="UTF-8">
-       
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FactLens | Explainable AI Credibility Dashboard</title>
-           
-    <link        
+    <title>FactLens | Explainable AI Credibility Dashboard</title>
+    <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&family=Crimson+Pro:wght@400;600&display=swap"
-                rel="stylesheet">
-           
+        rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-        <style>
+    <style>
         /* --- 1. DESIGN SYSTEM (Tokens) --- */
         :root {
             /* Base Colors */
@@ -258,12 +254,28 @@
 
         .app-layout {
             display: grid;
-            /* Desktop: 3 columns */
+            /* Desktop: 3 columns Fixed-Fluid-Fixed */
             grid-template-columns: 340px minmax(0, 1fr) 300px;
             gap: var(--gap-main);
             padding: 32px 48px;
             max-width: 1600px;
             margin: 0 auto;
+            height: calc(100vh - 72px);
+            /* Full height minus header */
+            box-sizing: border-box;
+        }
+
+        /* Panel Scroll Handling */
+        .panel-left,
+        .panel-right {
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .panel-center {
+            overflow-y: auto;
+            padding-right: 8px;
+            /* Prevent scrollbar overlap */
         }
 
         /* Tablet (Stacked History) */
@@ -271,6 +283,8 @@
             .app-layout {
                 grid-template-columns: 300px 1fr;
                 padding: 24px;
+                height: auto;
+                /* Allow natural scrolling on smaller screens */
             }
 
             .panel-right {
@@ -565,375 +579,335 @@
 
 <body>
 
-            <div id="toastContainer"></div>
+    <div id="toastContainer"></div>
 
-            <header class="app-header">
-                <div class="header-left">
-                        <div style="font-size: 24px;">📰</div>
-                        <div>
-                                <div class="app-title" style="font-size: 22px;">FactLens</div>
-                                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">AI Research
-                    Lab</div>
-                            </div>
-                    </div>
-                <div class="header-right">
-                        <button id="btnToggleTheme" class="button-control has-hint" aria-label="Toggle Dark Mode"      
-                          data-hint="Switch between light and dark lab modes. Charts will restyle automatically.">
-                                🌓 Theme
-                            </button>
-                        <div style="height: 24px; width: 1px; background: var(--border-subtle); margin: 0 10px;"></div>
-                        <select id="demoSelector" class="button-control has-hint"                
+    <header class="app-header">
+        <div class="header-left">
+            <div style="font-size: 24px;">📰</div>
+            <div>
+                <div class="app-title" style="font-size: 22px;">FactLens</div>
+                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">AI Research Lab</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btnToggleTheme" class="button-control has-hint" aria-label="Toggle Dark Mode"
+                data-hint="Switch between light and dark lab modes. Charts will restyle automatically.">
+                🌓 Theme
+            </button>
+            <div style="height: 24px; width: 1px; background: var(--border-subtle); margin: 0 10px;"></div>
+            <select id="demoSelector" class="button-control has-hint"
                 data-hint="Load a pre-made article to see how FactLens reacts to different risk levels.">
-                                <option value="">📋 Load Demo...</option>
-                                <option value="highRiskFake">🚨 Fake News (High Risk)</option>
-                                <option value="lowRiskCredible">✅ Credible (Low Risk)</option>
-                                <option value="mediumRiskMixed">⚠️ Mixed Signals</option>
-                            </select>
-                        <button id="btnExportSession" class="button-control has-hint"                
+                <option value="">📋 Load Demo...</option>
+                <option value="highRiskFake">🚨 Fake News (High Risk)</option>
+                <option value="lowRiskCredible">✅ Credible (Low Risk)</option>
+                <option value="mediumRiskMixed">⚠️ Mixed Signals</option>
+            </select>
+            <button id="btnExportSession" class="button-control has-hint"
                 data-hint="Download your full analysis history as a JSON file for research or debugging.">
-                                📥 Export
-                            </button>
-                    </div>
-            </header>
+                📥 Export
+            </button>
+        </div>
+    </header>
 
-            <div class="app-layout">
+    <div class="app-layout">
 
-                        <aside class="panel-left">
-                        <div class="card has-hint"                
+        <aside class="panel-left">
+            <div class="card has-hint"
                 data-hint="This is your input lab. Paste a headline, source, and full text to analyze.">
-                                <div class="card-header">
-                                        <h2 style="font-size: 18px;">Article Analyzer</h2>
-                                        <p class="text-muted" style="font-size: 13px; margin-top: 4px;">Paste text or
-                        URL to detect
-                                                misinformation patterns.</p>
-                                    </div>
+                <div class="card-header">
+                    <h2 style="font-size: 18px;">Article Analyzer</h2>
+                    <p class="text-muted" style="font-size: 13px; margin-top: 4px;">Paste text or URL to detect
+                        misinformation patterns.</p>
+                </div>
 
-                                <form id="analysisForm" onsubmit="event.preventDefault();">
-                                        <label for="articleTitle">Headline (Optional)</label>
-                                        <input type="text" id="articleTitle" class="form-control"
-                        placeholder="e.g. SHOCKING Discovery...">
+                <form id="analysisForm" onsubmit="event.preventDefault();">
+                    <label for="articleTitle">Headline (Optional)</label>
+                    <input type="text" id="articleTitle" class="form-control" placeholder="e.g. SHOCKING Discovery...">
 
-                                        <label for="articleSource">Source URL (Optional)</label>
-                                        <input type="url" id="articleSource" class="form-control"
-                        placeholder="https://example.com">
+                    <label for="articleSource">Source URL (Optional)</label>
+                    <input type="url" id="articleSource" class="form-control" placeholder="https://example.com">
 
-                                        <label for="articleContent">Full Text</label>
-                                        <textarea id="articleContent" class="form-control"                        
+                    <label for="articleContent">Full Text</label>
+                    <textarea id="articleContent" class="form-control"
                         placeholder="Paste the full article content here for analysis..."></textarea>
 
-                                        <button type="button" id="btnAnalyze"
-                        class="button-control btn-primary w-full has-hint"                        
-                        style="justify-content: center; padding: 14px;"                        
+                    <button type="button" id="btnAnalyze" class="button-control btn-primary w-full has-hint"
+                        style="justify-content: center; padding: 14px;"
                         data-hint="Send this article to the model and generate all dashboards: overview, explanations, claims, and trends.">
-                                                🚀 Run Analysis
-                                            </button>
-                                    </form>
-                            </div>
-                    </aside>
+                        🚀 Run Analysis
+                    </button>
+                </form>
+            </div>
+        </aside>
 
-                        <main class="panel-center">
+        <main class="panel-center">
 
-                                    <div role="tablist" class="tab-navigation">
-                                <button id="tab-overview" class="tab-btn has-hint" role="tab" aria-selected="true"      
-                                  aria-controls="panel-overview"                    
+            <div role="tablist" class="tab-navigation">
+                <button id="tab-overview" class="tab-btn has-hint" role="tab" aria-selected="true"
+                    aria-controls="panel-overview"
                     data-hint="Summary: overall risk, confidence, and key reasons in one glance.">
-                                        Overview
-                                    </button>
-                                <button id="tab-explanations" class="tab-btn has-hint" role="tab" aria-selected="false"
-                                        aria-controls="panel-explanations"                    
+                    Overview
+                </button>
+                <button id="tab-explanations" class="tab-btn has-hint" role="tab" aria-selected="false"
+                    aria-controls="panel-explanations"
                     data-hint="Glass-box view: see which words and features pushed the model toward this decision.">
-                                        Explanations
-                                    </button>
-                                <button id="tab-claims" class="tab-btn has-hint" role="tab" aria-selected="false"      
-                                  aria-controls="panel-claims"                    
+                    Explanations
+                </button>
+                <button id="tab-claims" class="tab-btn has-hint" role="tab" aria-selected="false"
+                    aria-controls="panel-claims"
                     data-hint="See extracted factual claims and how they connect to sources and evidence.">
-                                        Claims
-                                    </button>
-                                <button id="tab-temporal" class="tab-btn has-hint" role="tab" aria-selected="false"    
-                                    aria-controls="panel-temporal"                    
+                    Claims
+                </button>
+                <button id="tab-temporal" class="tab-btn has-hint" role="tab" aria-selected="false"
+                    aria-controls="panel-temporal"
                     data-hint="Track how risk and uncertainty evolve across multiple analyses.">
-                                        Trends
-                                    </button>
-                                <button id="tab-system" class="tab-btn has-hint" role="tab" aria-selected="false"      
-                                  aria-controls="panel-system"                    
+                    Trends
+                </button>
+                <button id="tab-system" class="tab-btn has-hint" role="tab" aria-selected="false"
+                    aria-controls="panel-system"
                     data-hint="Meta view: how the tool has been performing across your session.">
-                                        System
-                                    </button>
-                            </div>
+                    System
+                </button>
+            </div>
 
-                                    <div id="panel-overview" role="tabpanel" class="tab-content">
-                                <section class="card" style="margin-bottom: 24px;">
-                                        <div class="grid-2" style="align-items: center;">
-                                                                        <div style="text-align: center; padding: 20px;"
-                            class="has-hint"                            
+            <div id="panel-overview" role="tabpanel" class="tab-content">
+                <section class="card" style="margin-bottom: 24px;">
+                    <div class="grid-2" style="align-items: center;">
+                        <div style="text-align: center; padding: 20px;" class="has-hint"
                             data-hint="Overall credibility score. Higher = more likely to be misinformation.">
-                                                        <div style="height: 160px; position: relative;">
-                                                                <canvas id="credibilityGauge"></canvas>
-                                                                <div
-                                    style="position: absolute; bottom: 0; left: 0; right: 0;">
-                                                                        <span id="gaugeScore"                          
-                                                     
-                                        style="font-family: 'Playfair Display'; font-size: 48px; font-weight: 700;"    
-                                                                            class="has-hint"                            
-                                                   
+                            <div style="height: 160px; position: relative;">
+                                <canvas id="credibilityGauge"></canvas>
+                                <div style="position: absolute; bottom: 0; left: 0; right: 0;">
+                                    <span id="gaugeScore"
+                                        style="font-family: 'Playfair Display'; font-size: 48px; font-weight: 700;"
+                                        class="has-hint"
                                         data-hint="The model's final credibility score for this article on a 0–100% scale.">--%</span>
-                                                                </div>
-                                                            </div>
-                                                        <div id="gaugeLabel" class="text-muted has-hint"
-                                style="margin-top: 10px; font-weight: 500;"                                
+                                </div>
+                            </div>
+                            <div id="gaugeLabel" class="text-muted has-hint" style="margin-top: 10px; font-weight: 500;"
                                 data-hint="Plain-language interpretation of the score (Trusted, Suspicious, or High Risk).">
-                                                                Ready to Analyze
-                                                            </div>
-                                                                                    <div id="riskBadge"
-                                class="badge-risk" style="margin-top: 8px; display: none;"></div>
-                                                    </div>
+                                Ready to Analyze
+                            </div>
+                            <div id="riskBadge" class="badge-risk" style="margin-top: 8px; display: none;"></div>
+                        </div>
 
-                                                                        <div
-                            style="border-left: 1px solid var(--border-subtle); padding-left: 24px;" class="has-hint"  
-                                                     
+                        <div style="border-left: 1px solid var(--border-subtle); padding-left: 24px;" class="has-hint"
                             data-hint="Top reasons this article was judged at this risk level.">
-                                                        <h3>🧠 Key Indicators</h3>
-                                                        <p class="text-muted"
-                                style="font-size: 13px; margin-bottom: 16px;">Top factors influencing
-                                                                this score:</p>
-                                                        <ul id="keyReasonsList"
-                                style="padding-left: 0; list-style: none;">
-                                                                <li class="text-muted"
-                                    style="font-size: 14px; font-style: italic;">Analysis pending...
-                                                                    </li>
-                                                            </ul>
-                                                    </div>
-                                            </div>
-                                    </section>
+                            <h3>🧠 Key Indicators</h3>
+                            <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">Top factors influencing
+                                this score:</p>
+                            <ul id="keyReasonsList" style="padding-left: 0; list-style: none;">
+                                <li class="text-muted" style="font-size: 14px; font-style: italic;">Analysis pending...
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
 
-                                                <section class="card has-hint"                    
+                <section class="card has-hint"
                     data-hint="How sure the model is about this judgment, plus how wide the credible range of scores is.">
-                                        <div class="card-header-inline">
-                                                <h3>📉 Uncertainty Lab</h3>
-                                                <span class="text-muted" style="font-size: 12px;">How sure is the
-                            model?</span>
-                                            </div>
+                    <div class="card-header-inline">
+                        <h3>📉 Uncertainty Lab</h3>
+                        <span class="text-muted" style="font-size: 12px;">How sure is the model?</span>
+                    </div>
 
-                                                            <div class="uncertainty-summary-row"
-                        style="margin-bottom: 16px;">
-                                                <span id="uncertaintyBadge" class="uncertainty-pill has-hint"          
-                                             
+                    <div class="uncertainty-summary-row" style="margin-bottom: 16px;">
+                        <span id="uncertaintyBadge" class="uncertainty-pill has-hint"
                             data-hint="A simplified confidence label based on model uncertainty. Low = confident, High = unsure.">
-                                                        Confidence: --
-                                                    </span>
-                                                <p id="uncertaintyNarrative" class="text-muted"
-                            style="font-size: 13px; margin: 0 0 0 8px;">
-                                                        Run an analysis to see how confident the model is.
-                                                    </p>
-                                            </div>
+                            Confidence: --
+                        </span>
+                        <p id="uncertaintyNarrative" class="text-muted" style="font-size: 13px; margin: 0 0 0 8px;">
+                            Run an analysis to see how confident the model is.
+                        </p>
+                    </div>
 
-                                        <div class="grid-2">
-                                                                        <div>
-                                                        <div
-                                style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-                                                                <label style="margin: 0;">Model confusion</label>
-                                                                <span class="help-icon"                                
-                                       
+                    <div class="grid-2">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                                <label style="margin: 0;">Model confusion</label>
+                                <span class="help-icon"
                                     title="This measures how 'spread out' the model's belief is. Low confusion = more confident, high confusion = less confident.">?</span>
-                                                            </div>
-                                                        <div style="height: 100px; position: relative;">
-                                                                <canvas id="uncertaintyGauge"></canvas>
-                                                                <div id="uncertaintyValue"                              
-                                         
+                            </div>
+                            <div style="height: 100px; position: relative;">
+                                <canvas id="uncertaintyGauge"></canvas>
+                                <div id="uncertaintyValue"
                                     style="position: absolute; bottom: 10px; width: 100%; text-align: center; font-weight: 600; font-size: 18px;">
-                                                                        --</div>
-                                                            </div>
+                                    --</div>
+                            </div>
 
-                                                                                    <div class="uncertainty-legend">
-                                                                <span>Low confusion</span>
-                                                                <span>Medium</span>
-                                                                <span>High</span>
-                                                            </div>
-                                                    </div>
+                            <div class="uncertainty-legend">
+                                <span>Low confusion</span>
+                                <span>Medium</span>
+                                <span>High</span>
+                            </div>
+                        </div>
 
-                                                                        <div>
-                                                        <div
-                                style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-                                                                <label style="margin: 0;">Score range (95% CI)</label>
-                                                                <span class="help-icon"                                
-                                       
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                                <label style="margin: 0;">Score range (95% CI)</label>
+                                <span class="help-icon"
                                     title="We expect the true credibility score to fall inside this range about 95% of the time. Narrower = more certain.">?</span>
-                                                            </div>
-                                                        <canvas id="confidenceBandChart"                                
+                            </div>
+                            <canvas id="confidenceBandChart"
                                 style="height: 80px; width: 100%; margin-top: 10px;"></canvas>
-                                                        <p id="ciTextHint" class="tiny-muted" style="margin-top: 8px;">
-                                                                Range where the true credibility score likely falls.
-                                                            </p>
-                                                    </div>
-                                            </div>
+                            <p id="ciTextHint" class="tiny-muted" style="margin-top: 8px;">
+                                Range where the true credibility score likely falls.
+                            </p>
+                        </div>
+                    </div>
 
-                                                            <p id="uncertaintyActionHint" class="tiny-muted"
-                        style="margin-top: 12px;">
-                                                When uncertainty is high, treat this result as a warning, not proof, and
-                        cross-check with
-                                                independent sources.
-                                            </p>
-                                    </section>
-                            </div>
+                    <p id="uncertaintyActionHint" class="tiny-muted" style="margin-top: 12px;">
+                        When uncertainty is high, treat this result as a warning, not proof, and cross-check with
+                        independent sources.
+                    </p>
+                </section>
+            </div>
 
-                                    <div id="panel-explanations" role="tabpanel" class="tab-content" hidden>
-                                <div class="grid-2" style="grid-template-columns: 2fr 1fr;">
+            <div id="panel-explanations" role="tabpanel" class="tab-content" hidden>
+                <div class="grid-2" style="grid-template-columns: 2fr 1fr;">
 
-                                                            <section class="card card-attention has-hint"
-                        style="grid-column: span 2;"                        
+                    <section class="card card-attention has-hint" style="grid-column: span 2;"
                         data-hint="Highlights words the model paid most attention to when deciding credibility.">
-                                                <h3>🧠 Attention Heatmap</h3>
-                                                <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">
-                                                        Words highlighted by intensity influenced the model's decision.
-                                                    </p>
-                                                <div id="attentionHeatmap"                            
+                        <h3>🧠 Attention Heatmap</h3>
+                        <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">
+                            Words highlighted by intensity influenced the model's decision.
+                        </p>
+                        <div id="attentionHeatmap"
                             style="font-family: 'Crimson Pro', serif; font-size: 18px; line-height: 1.8; padding: 16px; background: var(--bg-app); border-radius: 8px;"
-                                                        class="has-hint"                            
+                            class="has-hint"
                             data-hint="Darker highlights = stronger influence. Hover over highlighted words to inspect context.">
-                                                        No content analyzed yet.
-                                                    </div>
-                                            </section>
+                            No content analyzed yet.
+                        </div>
+                    </section>
 
-                                                            <section class="card has-hint"                        
+                    <section class="card has-hint"
                         data-hint="Shows how much each feature type (content, domain, claims, cross-reference) contributed to the score.">
-                                                <h3>📊 Features</h3>
-                                                <div style="height: 200px;">
-                                                        <canvas id="featureChart"></canvas>
-                                                    </div>
-                                            </section>
+                        <h3>📊 Features</h3>
+                        <div style="height: 200px;">
+                            <canvas id="featureChart"></canvas>
+                        </div>
+                    </section>
 
-                                                            <section class="card has-hint"                        
+                    <section class="card has-hint"
                         data-hint="Flagged phrases and a quick breakdown of the uncertainty metrics used under the hood.">
-                                                <h3>🚩 Flags</h3>
-                                                <div id="suspiciousPhrases" class="phrases-grid"
-                            style="margin-top: 16px;">
-                                                        <span class="text-muted" style="font-size: 13px;">No phrases
-                                flagged.</span>
-                                                    </div>
+                        <h3>🚩 Flags</h3>
+                        <div id="suspiciousPhrases" class="phrases-grid" style="margin-top: 16px;">
+                            <span class="text-muted" style="font-size: 13px;">No phrases flagged.</span>
+                        </div>
 
-                                                <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px;">
-                            Breakdown</h4>
-                                                <table id="uncertaintyBreakdown" class="data-table">
-                                                        <tbody>
-                                                                <tr>
-                                                                        <td>Metric</td>
-                                                                        <td>Value</td>
-                                                                    </tr>
-                                                            </tbody>
-                                                    </table>
-                                            </section>
-                                    </div>
-                            </div>
+                        <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px;">Breakdown</h4>
+                        <table id="uncertaintyBreakdown" class="data-table">
+                            <tbody>
+                                <tr>
+                                    <td>Metric</td>
+                                    <td>Value</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </div>
 
-                                    <div id="panel-claims" role="tabpanel" class="tab-content" hidden>
-                                <section class="card has-hint"                    
+            <div id="panel-claims" role="tabpanel" class="tab-content" hidden>
+                <section class="card has-hint"
                     data-hint="Fact-level view: what claims were extracted and how they relate to sources and evidence.">
-                                        <div class="card-header-inline">
-                                                <h3>🧾 Extracted Claims</h3>
-                                                <div style="display: flex; gap: 8px;">
-                                                        <button class="button-control has-hint"                        
-                                       
+                    <div class="card-header-inline">
+                        <h3>🧾 Extracted Claims</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="button-control has-hint"
                                 data-hint="Show all detected claims regardless of verification state.">All</button>
-                                                        <button class="button-control has-hint"                        
-                                        data-hint="Show only claims that have supporting evidence.">Verified</button>
-                                                    </div>
-                                            </div>
-                                        <div class="grid-2">
-                                                <div id="claimsList"
-                            style="max-height: 500px; overflow-y: auto; padding-right: 10px;"                          
-                              class="has-hint" data-hint="Each row is an extracted claim and its verification status.">
-                                                        <p class="text-muted">No claims extracted.</p>
-                                                    </div>
-                                                <div
-                            style="background: var(--bg-app); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-subtle);"
-                                                        class="has-hint"                            
+                            <button class="button-control has-hint"
+                                data-hint="Show only claims that have supporting evidence.">Verified</button>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div id="claimsList" style="max-height: 500px; overflow-y: auto; padding-right: 10px;"
+                            class="has-hint" data-hint="Each row is an extracted claim and its verification status.">
+                            <p class="text-muted">No claims extracted.</p>
+                        </div>
+                        <div style="background: var(--bg-app); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-subtle);"
+                            class="has-hint"
                             data-hint="Graph view of how claims connect to sources and evidence nodes.">
-                                                        <div id="knowledgeGraph"
-                                style="text-align: center; padding: 20px;">
-                                                                <p class="text-muted">Knowledge Graph Visualization</p>
-                                                                <small>(Nodes appear here after analysis)</small>
-                                                            </div>
-                                                    </div>
-                                            </div>
-                                    </section>
-                            </div>
+                            <div id="knowledgeGraph" style="text-align: center; padding: 20px;">
+                                <p class="text-muted">Knowledge Graph Visualization</p>
+                                <small>(Nodes appear here after analysis)</small>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
 
-                                    <div id="panel-temporal" role="tabpanel" class="tab-content" hidden>
-                                <div class="grid-2">
-                                        <section class="card has-hint"                        
+            <div id="panel-temporal" role="tabpanel" class="tab-content" hidden>
+                <div class="grid-2">
+                    <section class="card has-hint"
                         data-hint="Timeline of credibility scores and uncertainty across your analyses.">
-                                                <h3>⏱ Trends & Uncertainty</h3>
-                                                <div style="height: 250px;">
-                                                        <canvas id="timeSeriesChart"></canvas>
-                                                    </div>
-                                            </section>
-                                        <section class="card has-hint"                        
+                        <h3>⏱ Trends & Uncertainty</h3>
+                        <div style="height: 250px;">
+                            <canvas id="timeSeriesChart"></canvas>
+                        </div>
+                    </section>
+                    <section class="card has-hint"
                         data-hint="Distribution of scores across your session. Clusters show whether you’re mostly exploring safe or risky content.">
-                                                <h3>📊 Score Distribution</h3>
-                                                <div style="height: 250px;">
-                                                        <canvas id="distributionChart"></canvas>
-                                                    </div>
-                                            </section>
-                                    </div>
-                                <section class="card has-hint" style="margin-top: 24px;"                    
+                        <h3>📊 Score Distribution</h3>
+                        <div style="height: 250px;">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+                <section class="card has-hint" style="margin-top: 24px;"
                     data-hint="Side-by-side comparison of any two analyses selected from the history panel.">
-                                        <h3>📈 Comparative Analysis</h3>
-                                        <div id="comparisonGrid" class="grid-2" style="margin-top: 16px;">
-                                                <div class="text-muted" style="font-style: italic;">Select two items
-                            from history to compare.
-                                                    </div>
-                                                <div></div>
-                                            </div>
-                                    </section>
-                            </div>
+                    <h3>📈 Comparative Analysis</h3>
+                    <div id="comparisonGrid" class="grid-2" style="margin-top: 16px;">
+                        <div class="text-muted" style="font-style: italic;">Select two items from history to compare.
+                        </div>
+                        <div></div>
+                    </div>
+                </section>
+            </div>
 
-                                    <div id="panel-system" role="tabpanel" class="tab-content" hidden>
-                                <div class="system-stats-grid grid-3 has-hint"
-                    data-hint="Quick stats across this browser session.">
-                                        <div class="card" style="text-align: center;">
-                                                <div class="text-muted" style="font-size: 12px;">TOTAL ANALYSES</div>
-                                                <div class="text-lg" id="statTotal">0</div>
-                                            </div>
-                                        <div class="card" style="text-align: center;">
-                                                <div class="text-muted" style="font-size: 12px;">AVG CONFIDENCE</div>
-                                                <div class="text-lg" id="statAvgConf">--</div>
-                                            </div>
-                                    </div>
-                                <div class="card card-limitations has-hint"                    
-                    style="margin-top: 24px; border-left: 4px solid var(--risk-medium);"                    
+            <div id="panel-system" role="tabpanel" class="tab-content" hidden>
+                <div class="system-stats-grid grid-3 has-hint" data-hint="Quick stats across this browser session.">
+                    <div class="card" style="text-align: center;">
+                        <div class="text-muted" style="font-size: 12px;">TOTAL ANALYSES</div>
+                        <div class="text-lg" id="statTotal">0</div>
+                    </div>
+                    <div class="card" style="text-align: center;">
+                        <div class="text-muted" style="font-size: 12px;">AVG CONFIDENCE</div>
+                        <div class="text-lg" id="statAvgConf">--</div>
+                    </div>
+                </div>
+                <div class="card card-limitations has-hint"
+                    style="margin-top: 24px; border-left: 4px solid var(--risk-medium);"
                     data-hint="Important caveats and boundaries for how this model should be used.">
-                                        <h4>⚠️ Model Limitations</h4>
-                                        <ul
-                        style="font-size: 14px; line-height: 1.6; color: var(--text-main); margin-top: 12px;">
-                                                <li>Optimized for English news articles (200+ words).</li>
-                                                <li>Does not perform real-time web scraping for breaking news.</li>
-                                                <li>Attention weights are interpretive aids, not causal proof.</li>
-                                            </ul>
-                                    </div>
-                            </div>
+                    <h4>⚠️ Model Limitations</h4>
+                    <ul style="font-size: 14px; line-height: 1.6; color: var(--text-main); margin-top: 12px;">
+                        <li>Optimized for English news articles (200+ words).</li>
+                        <li>Does not perform real-time web scraping for breaking news.</li>
+                        <li>Attention weights are interpretive aids, not causal proof.</li>
+                    </ul>
+                </div>
+            </div>
 
-                    </main>
+        </main>
 
-                        <aside class="panel-right">
-                        <div class="history-header" style="margin-bottom: 20px;">
-                                <h3>🗃️ History</h3>
-                                <div
-                    style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                                        <span class="text-muted" style="font-size: 12px;">Last 50 items</span>
-                                        <button id="btnClearHistory"                        
+        <aside class="panel-right">
+            <div class="history-header" style="margin-bottom: 20px;">
+                <h3>🗃️ History</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <span class="text-muted" style="font-size: 12px;">Last 50 items</span>
+                    <button id="btnClearHistory"
                         style="background: none; border: none; color: var(--text-muted); font-size: 12px; text-decoration: underline; cursor: pointer;"
-                                                class="has-hint"                        
+                        class="has-hint"
                         data-hint="Remove all locally stored analyses from this browser.">Clear</button>
-                                    </div>
-                            </div>
+                </div>
+            </div>
 
-                        <div id="historyList" style="display: flex; flex-direction: column; gap: 10px;">
-                                            </div>
-                    </aside>
+            <div id="historyList" style="display: flex; flex-direction: column; gap: 10px;">
+            </div>
+        </aside>
 
-            </div>
+    </div>
 
-       
     <script>
         /* --- 1. CONFIGURATION --- */
         const CONFIG = {
@@ -1422,19 +1396,19 @@
                 // Uncertainty Breakdown
                 const breakdownBody = document.getElementById('uncertaintyBreakdown').querySelector('tbody');
                 breakdownBody.innerHTML = `
-                    <tr><td>Entropy (Uncertainty)</td><td>${uncertainty.toFixed(3)}</td></tr>
-                    <tr><td>Variance</td><td>${(Math.random() * 0.05).toFixed(4)}</td></tr>
-                    <tr><td>95% CI Width</td><td>${(ciUpper - ciLower).toFixed(3)}</td></tr>
-                `;
+                    <tr><td>Entropy (Uncertainty)</td><td>${uncertainty.toFixed(3)}</td></tr>
+                    <tr><td>Variance</td><td>${(Math.random() * 0.05).toFixed(4)}</td></tr>
+                    <tr><td>95% CI Width</td><td>${(ciUpper - ciLower).toFixed(3)}</td></tr>
+                `;
 
                 // 4. Claims Tab
                 const claimsContainer = document.getElementById('claimsList');
                 claimsContainer.innerHTML = (data.extractedClaims || []).map(c => `
-                    <div style="border-bottom:1px solid var(--border-subtle); padding: 8px 0;">
-                        <div class="badge-risk ${c.status === 'VERIFIED' ? 'low' : 'high'}" style="font-size:10px; margin-bottom:4px;">${c.status}</div>
-                        <div style="font-size:14px;">${c.claim}</div>
-                    </div>
-                `).join('') || '<p class="text-muted">No claims found.</p>';
+                    <div style="border-bottom:1px solid var(--border-subtle); padding: 8px 0;">
+                        <div class="badge-risk ${c.status === 'VERIFIED' ? 'low' : 'high'}" style="font-size:10px; margin-bottom:4px;">${c.status}</div>
+                        <div style="font-size:14px;">${c.claim}</div>
+                    </div>
+                `).join('') || '<p class="text-muted">No claims found.</p>';
 
                 // 5. Switch to Overview
                 UI.switchTab('tab-overview');
@@ -1450,23 +1424,23 @@
                     const score = item.data ? item.data.credibilityScore : item.credibilityScore;
                     const risk = SessionManager.getRisk(score);
                     return `
-                    <div class="history-item risk-${risk.class} has-hint" data-hint="Click Load to reopen this analysis. Use Compare to line it up side by side on the Trends tab.">
-                        <div class="history-header-row">
-                            <strong style="font-size:14px; display:block; width: 100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title || 'Untitled'}</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="badge-risk ${risk.class}" style="font-size:10px;">${Math.round(score * 100)}%</span>
-                            <span class="text-muted" style="font-size:11px;">${new Date(item.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        <div class="history-controls">
-                            <label style="display:flex; align-items:center; cursor:pointer;" class="has-hint" data-hint="Include this article in a two-way comparison card on the Trends tab.">
-                                <input type="checkbox" onchange="App.compare('${item.id}', this)">
-                                <span style="margin-left:4px;">Compare</span>
-                            </label>
-                            <button onclick="App.loadHistoryItem('${item.id}')" style="margin-left:auto; background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:600;" class="has-hint" data-hint="Load this article’s full analysis in the dashboard.">Load »</button>
-                        </div>
-                    </div>
-                    `;
+                    <div class="history-item risk-${risk.class} has-hint" data-hint="Click Load to reopen this analysis. Use Compare to line it up side by side on the Trends tab.">
+                        <div class="history-header-row">
+                            <strong style="font-size:14px; display:block; width: 100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title || 'Untitled'}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="badge-risk ${risk.class}" style="font-size:10px;">${Math.round(score * 100)}%</span>
+                            <span class="text-muted" style="font-size:11px;">${new Date(item.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="history-controls">
+                            <label style="display:flex; align-items:center; cursor:pointer;" class="has-hint" data-hint="Include this article in a two-way comparison card on the Trends tab.">
+                                <input type="checkbox" onchange="App.compare('${item.id}', this)">
+                                <span style="margin-left:4px;">Compare</span>
+                            </label>
+                            <button onclick="App.loadHistoryItem('${item.id}')" style="margin-left:auto; background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:600;" class="has-hint" data-hint="Load this article’s full analysis in the dashboard.">Load »</button>
+                        </div>
+                    </div>
+                    `;
                 }).join('');
             },
 
@@ -1549,8 +1523,8 @@
 
                 } catch (error) {
                     console.error('🔥 Analysis Failed:', error);
-                    console.error('   Error name:', error.name);
-                    console.error('   Error message:', error.message);
+                    console.error('   Error name:', error.name);
+                    console.error('   Error message:', error.message);
 
                     // Show specific error in toast before falling back
                     UI.toast(`⚠️ Connection Failed: ${error.message}. Using Simulation.`);
@@ -1632,13 +1606,13 @@
                     const item = history.find(h => h.id == cid);
                     const data = item.data || item;
                     return `
-                        <div class="card" style="padding: 16px;">
-                            <h4>${item.title}</h4>
-                            <div class="badge-risk ${SessionManager.getRisk(data.credibilityScore).class}">
-                                Score: ${Math.round(data.credibilityScore * 100)}%
-                            </div>
-                        </div>
-                    `;
+                        <div class="card" style="padding: 16px;">
+                            <h4>${item.title}</h4>
+                            <div class="badge-risk ${SessionManager.getRisk(data.credibilityScore).class}">
+                                Score: ${Math.round(data.credibilityScore * 100)}%
+                            </div>
+                        </div>
+                    `;
                 }).join('');
 
                 if (App.compareList.length === 0) grid.innerHTML = '<div class="text-muted">Select items...</div><div></div>';
